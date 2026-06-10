@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Grid: Core Archive</title>
+    <!-- Collegamento al Manifest della PWA -->
+    <link rel="manifest" href="manifest.json">
+    <!-- Ottimizzazione per la barra di stato mobile -->
+    <meta name="theme-color" content="#090d16">
+
+    <script>
+        // Registrazione del Service Worker per l'installazione su smartphone
+        if ('service worker' in navigator) {
+          navigator.serviceWorker.register('sw.js')
+            .then(() => console.log("Service Worker: Sistema di caching attivato."))
+            .catch(err => console.error("Anomalia Service Worker:", err));
+        }
+    </script>
+    <style>
+        :root {
+            --bg-pure: #000000;
+            --surface-tech: #090d16;
+            --surface-card: #101726;
+            --accent-cyan: #00e5ff;
+            --accent-orange: #ff6d00;
+            --accent-vector: #1a293d;
+            --text-neon: #e0f7fa;
+            --text-dark: #6272a4;
+
+            --cls-azione: #ff0055;
+            --cls-fantascienza: #00e5ff;
+            --cls-horror: #9d00ff;
+            --cls-thriller: #ffea00;
+            --cls-drammatico: #00ff66;
+            --cls-commedia: #ff00ff;
+            --cls-documentari: #00ffff;
+            --cls-anime: #ffaa00;
+            --cls-classici: #ffffff;
+            --cls-serietv: #0088ff;
+
+            /* Nuovi Nodi Classificativi */
+            --cls-romantico: #ff3399;
+            --cls-giallo: #d4ff00;
+            --cls-storico: #a0c4ff;
+            --cls-avventura: #ff9933;
+            --cls-fantasy: #c266ff;
+            --cls-musicale: #ff4da6;
+            --cls-guerra: #8f9779;
+            --cls-western: #b87333;
+            --cls-noir: #808080;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace, sans-serif; }
+
+        body {
+            background-color: var(--bg-pure);
+            background-image:
+                linear-gradient(rgba(0, 229, 255, 0.15) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 229, 255, 0.15) 1px, transparent 1px);
+            background-size: 35px 35px;
+            color: var(--text-neon);
+            padding: 15px;
+            padding-bottom: 90px;
+        }
+
+        #bg-canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; pointer-events: none; }
+
+        .main-header {
+            text-align: center; padding: 20px 0; margin-bottom: 25px;
+            border-bottom: 1px solid var(--accent-vector); background: rgba(9, 13, 22, 0.6);
+            box-shadow: 0 4px 20px rgba(0, 229, 255, 0.1);
+        }
+
+        .header-container { display: inline-block; vertical-align: middle; }
+        .header-title {
+            display: inline-block; vertical-align: middle; font-size: 1.3rem; font-weight: 900;
+            letter-spacing: 2px; text-transform: uppercase; color: #ffffff;
+            text-shadow: 0 0 10px var(--accent-cyan), 0 0 20px rgba(0, 229, 255, 0.5); margin: 0 15px;
+        }
+        .lightcycle-icon { display: inline-block; vertical-align: middle; width: 70px; height: 30px; }
+
+        .nav-grid { display: table; width: 100%; margin-bottom: 25px; border: 1px solid var(--accent-cyan); box-shadow: 0 0 10px rgba(0, 229, 255, 0.2); }
+        .nav-tab {
+            display: table-cell; text-align: center; padding: 15px; cursor: pointer;
+            background: var(--surface-tech); font-weight: bold; letter-spacing: 2px;
+            text-transform: uppercase; font-size: 0.9rem; color: var(--text-dark); transition: all 0.3s ease;
+        }
+        .nav-tab.active { color: var(--bg-pure); background: var(--accent-cyan); text-shadow: none; box-shadow: 0 0 15px var(--accent-cyan); }
+
+        .view-section { display: none; animation: fadeIn 0.4s ease forwards; }
+        .view-section.active { display: block; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .tech-panel {
+            background: rgba(9, 13, 22, 0.9); backdrop-filter: blur(5px);
+            border: 1px solid var(--accent-vector); padding: 20px; position: relative;
+            box-shadow: inset 0 0 15px rgba(0, 229, 255, 0.05);
+        }
+        .tech-panel::before {
+            content: ''; position: absolute; top: -1px; left: -1px; width: 10px; height: 10px;
+            border-top: 2px solid var(--accent-cyan); border-left: 2px solid var(--accent-cyan);
+        }
+
+        .form-group { margin-bottom: 18px; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        @media(max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+
+        label {
+            display: block; font-size: 0.8rem; color: var(--accent-cyan); margin-bottom: 8px;
+            text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 5px rgba(0, 229, 255, 0.4);
+        }
+        input[type="text"], textarea, select {
+            width: 100%; padding: 12px; background: var(--bg-pure); border: 1px solid var(--accent-vector);
+            color: var(--text-neon); font-size: 1rem;
+        }
+        input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent-cyan); box-shadow: 0 0 8px rgba(0, 229, 255, 0.3); }
+
+        .cropper-container {
+            width: 100%; border: 1px dashed var(--accent-cyan); background: #000;
+            position: relative; overflow: hidden; margin-top: 10px; display: none;
+            cursor: grab;
+        }
+        .cropper-container:active { cursor: grabbing; }
+        #previewCanvas { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+        .cropper-hint {
+            position: absolute; bottom: 5px; left: 0; width: 100%; text-align: center;
+            font-size: 0.7rem; color: var(--bg-pure); background: rgba(0, 229, 255, 0.7); padding: 4px 0;
+            pointer-events: none; font-weight: bold;
+        }
+
+        .genre-selector-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; background: var(--bg-pure); padding: 10px; border: 1px solid var(--accent-vector); }
+        .genre-checkbox-label { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; text-transform: uppercase; cursor: pointer; color: var(--text-neon); }
+
+        .btn-action {
+            width: 100%; padding: 15px; background: rgba(0,0,0,0.5); border: 1px solid var(--accent-orange);
+            color: var(--accent-orange); font-weight: bold; text-transform: uppercase; letter-spacing: 2px; cursor: pointer; transition: all 0.3s; margin-top: 10px;
+        }
+        .btn-action:hover { background: var(--accent-orange); color: var(--bg-pure); box-shadow: 0 0 20px rgba(255, 109, 0, 0.6); }
+        .btn-cancel { border-color: var(--text-dark); color: var(--text-dark); margin-top: 5px; }
+        .btn-cancel:hover { background: var(--text-dark); box-shadow: none; }
+
+        .search-container { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+        .filters-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .sort-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 5px; }
+        @media(max-width: 600px) { .filters-grid, .sort-grid { grid-template-columns: 1fr; } }
+
+        .movie-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px; }
+        .movie-card {
+            background: rgba(16, 23, 38, 0.9); border: 1px solid var(--accent-vector); position: relative;
+            display: flex; flex-direction: column; overflow: hidden; backdrop-filter: blur(3px);
+            cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .movie-card:hover { transform: translateY(-5px); box-shadow: 0 5px 20px rgba(0, 229, 255, 0.2); border-color: var(--accent-cyan); }
+        .movie-card.blu-ray { border-top: 4px solid var(--accent-cyan); }
+        .movie-card.dvd { border-top: 4px solid var(--accent-orange); }
+
+        .cover-display {
+            width: 100%; height: 260px; background: #05080f; background-image: linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 100% 10px; display: flex; align-items: center; justify-content: center;
+            color: var(--text-dark); font-size: 0.7rem; text-transform: uppercase; object-fit: cover;
+        }
+        .card-info { padding: 12px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; }
+        .movie-title { font-weight: bold; font-size: 0.9rem; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; line-height: 1.3; color: #ffffff; }
+        .movie-meta-short { font-size: 0.7rem; color: var(--text-dark); margin-bottom: 6px; }
+        .genres-container { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+        .genre-tag { font-size: 0.65rem; font-weight: bold; text-transform: uppercase; }
+
+        .card-actions { position: absolute; top: 5px; right: 5px; display: flex; gap: 5px; z-index: 5; }
+        .icon-btn { background: rgba(0,0,0,0.8); width: 28px; height: 28px; border-radius: 4px; cursor: pointer; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s; font-family: sans-serif; }
+        .edit-btn { border: 1px solid var(--accent-cyan); color: var(--accent-cyan); }
+        .delete-btn { border: 1px solid #ff5555; color: #ff5555; }
+        .icon-btn:hover { background: var(--surface-tech); }
+
+        .detail-header { position: relative; margin-bottom: 20px; border: 1px solid var(--accent-cyan); box-shadow: 0 0 20px rgba(0,229,255,0.2); background-color: #000; }
+        .detail-cover { width: 100%; max-height: 600px; object-fit: contain; display: block; opacity: 0.85; margin: 0 auto; }
+        .detail-title-overlay { position: absolute; bottom: 0; left: 0; width: 100%; padding: 30px 20px 20px 20px; background: linear-gradient(transparent, #000 80%); }
+        .detail-title { font-size: 2rem; color: #fff; text-shadow: 0 0 15px var(--accent-cyan); text-transform: uppercase; letter-spacing: 2px; }
+        .detail-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+        @media(max-width: 768px) { .detail-grid { grid-template-columns: 1fr; } }
+        .data-panel { border-left: 3px solid var(--accent-cyan); padding-left: 15px; margin-bottom: 20px; }
+        .data-panel h3 { font-size: 0.8rem; color: var(--text-dark); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 5px; }
+        .data-panel p { color: #fff; font-size: 1rem; line-height: 1.5; white-space: pre-wrap; }
+        .data-panel.plot-panel p { font-size: 0.95rem; color: var(--text-neon); text-align: justify; }
+
+        .backup-zone { margin-top: 40px; padding: 15px; border-top: 1px solid var(--accent-vector); display: flex; gap: 10px; background: rgba(9, 13, 22, 0.8); }
+        .btn-secondary { flex: 1; padding: 10px; background: var(--surface-tech); border: 1px solid var(--text-dark); color: var(--text-neon); font-size: 0.7rem; cursor: pointer; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+
+<header class="main-header">
+    <div class="header-container">
+        <div class="lightcycle-icon">
+            <svg width="70" height="30" viewBox="0 0 70 30">
+                <path d="M5 20 L40 20" stroke="var(--accent-cyan)" stroke-width="4" opacity="0.8" />
+                <path d="M15 17 L38 17" stroke="var(--accent-cyan)" stroke-width="1" opacity="0.5" />
+                <path d="M35 22 C38 14, 48 10, 58 14 L64 22 Z" fill="#05080f" stroke="var(--accent-cyan)" stroke-width="2" />
+                <circle cx="40" cy="21" r="5" fill="#000" stroke="var(--accent-cyan)" stroke-width="2" />
+                <circle cx="60" cy="21" r="5" fill="#000" stroke="var(--accent-cyan)" stroke-width="2" />
+                <circle cx="40" cy="21" r="2" fill="var(--accent-cyan)" />
+                <circle cx="60" cy="21" r="2" fill="var(--accent-cyan)" />
+            </svg>
+        </div>
+        <h1 class="header-title">The Grid: Core Archive</h1>
+        <div class="lightcycle-icon">
+            <svg width="70" height="30" viewBox="0 0 70 30" style="transform: scaleX(-1);">
+                <path d="M5 20 L40 20" stroke="var(--accent-cyan)" stroke-width="4" opacity="0.8" />
+                <path d="M15 17 L38 17" stroke="var(--accent-cyan)" stroke-width="1" opacity="0.5" />
+                <path d="M35 22 C38 14, 48 10, 58 14 L64 22 Z" fill="#05080f" stroke="var(--accent-cyan)" stroke-width="2" />
+                <circle cx="40" cy="21" r="5" fill="#000" stroke="var(--accent-cyan)" stroke-width="2" />
+                <circle cx="60" cy="21" r="5" fill="#000" stroke="var(--accent-cyan)" stroke-width="2" />
+                <circle cx="40" cy="21" r="2" fill="var(--accent-cyan)" />
+                <circle cx="60" cy="21" r="2" fill="var(--accent-cyan)" />
+            </svg>
+        </div>
+    </div>
+</header>
+
+<div class="nav-grid" id="mainNav">
+    <div class="nav-tab active" id="tab-catalog" onclick="switchView('catalog')">Archivio Database</div>
+    <div class="nav-tab" id="tab-add" onclick="switchView('add')">Uplink Nuovo Dato</div>
+</div>
+
+<!-- CATALOGO -->
+<div id="section-catalog" class="view-section active">
+    <div class="search-container">
+        <input type="text" id="searchBar" placeholder="Cerca nel Titolo..." oninput="renderMovies()">
+        <div class="filters-grid">
+            <input type="text" id="filterDirector" placeholder="Cerca Regista..." oninput="renderMovies()">
+            <input type="text" id="filterActors" placeholder="Cerca Attori..." oninput="renderMovies()">
+            <input type="text" id="filterYear" placeholder="Anno Uscita..." oninput="renderMovies()">
+            <input type="text" id="filterSpecs" placeholder="Dati Tecnici/Nerd Info..." oninput="renderMovies()">
+            <select id="filterFormat" onchange="renderMovies()">
+                <option value="ALL">// Formato Supporto: Tutti</option>
+                <option value="Blu-ray">Blu-ray</option>
+                <option value="DVD">DVD</option>
+            </select>
+            <select id="filterGenre" onchange="renderMovies()">
+                <option value="ALL">// Genere Matrice: Tutti</option>
+            </select>
+        </div>
+        <!-- Modulo Organizer -->
+        <div class="sort-grid">
+            <select id="sortCriteria" onchange="renderMovies()">
+                <option value="alpha">// Ordina per: Alfabetico</option>
+                <option value="added">// Ordina per: Data Inserimento</option>
+                <option value="modified">// Ordina per: Ultima Modifica</option>
+            </select>
+            <select id="sortDirection" onchange="renderMovies()">
+                <option value="asc">▶ Direzione: Crescente (A-Z / Dal più vecchio)</option>
+                <option value="desc">▼ Direzione: Decrescente (Z-A / Dal più recente)</option>
+            </select>
+        </div>
+    </div>
+    <div class="movie-grid" id="movieGrid"></div>
+</div>
+
+<!-- INSERIMENTO / MODIFICA -->
+<div id="section-add" class="view-section">
+    <div class="tech-panel">
+        <div class="form-row">
+            <div class="form-group">
+                <label>Identificativo (Titolo Film)</label>
+                <input type="text" id="movieTitle" placeholder="Titolo...">
+            </div>
+            <div class="form-group">
+                <label>Anno di Uscita</label>
+                <input type="text" id="movieYear" placeholder="Es. 2010">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Regista Creatore</label>
+                <input type="text" id="movieDirector" placeholder="Nome regista...">
+            </div>
+            <div class="form-group">
+                <label>Formato Disco</label>
+                <select id="movieFormat">
+                    <option value="Blu-ray">Blu-ray</option>
+                    <option value="DVD">DVD</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Programmi (Attori Principali)</label>
+            <input type="text" id="movieActors" placeholder="Attori separati da virgola...">
+        </div>
+
+        <div class="form-group">
+            <label>Specifiche Tecniche / Nerd Info</label>
+            <input type="text" id="movieSpecs" placeholder="Es. 4K HDR, Aspect Ratio IMAX, Dolby Atmos, Extended Cut...">
+        </div>
+
+        <div class="form-group">
+            <label>Classificazione Matrice (Generi)</label>
+            <div class="genre-selector-grid" id="genreSelectorGrid"></div>
+        </div>
+
+        <div class="form-group">
+            <label>Sinossi / Trama del Flusso</label>
+            <textarea id="moviePlot" rows="5" placeholder="Inserisci i dati della trama qui..."></textarea>
+        </div>
+
+        <div class="form-group">
+            <label>Coordinate Scaffale (Note Interne)</label>
+            <input type="text" id="movieNotes" placeholder="Es. Scaffale A, Posizione 3">
+        </div>
+
+        <div class="form-group">
+            <label>Acquisizione Ottica HD (Risoluzione: 672x960)</label>
+            <input type="file" id="movieCover" accept="image/*" onchange="initImageCrop(this)">
+
+            <div class="cropper-container" id="cropperUI">
+                <canvas id="previewCanvas"></canvas>
+                <div class="cropper-hint">TRASCINA PER RIPOSIZIONARE - ROTELLINA MOUSE PER ZOOM</div>
+            </div>
+        </div>
+
+        <button id="submitBtn" class="btn-action" onclick="saveMovie()">Sincronizza nel Core</button>
+        <button id="cancelBtn" class="btn-action btn-cancel" style="display:none;" onclick="cancelEdit()">Interrompi Modifica</button>
+    </div>
+</div>
+
+<!-- PAGINA DETTAGLIO -->
+<div id="section-detail" class="view-section">
+    <button class="btn-action btn-cancel" style="margin-bottom: 20px;" onclick="switchView('catalog')">← Ritorna all'Archivio</button>
+    <div class="tech-panel" id="detailContent" style="padding: 0; overflow: hidden;">
+        <!-- Renderizzato via JS -->
+    </div>
+</div>
+
+<div class="backup-zone" id="backupZone">
+    <button class="btn-secondary" onclick="exportDatabase()">Esporta Disco Backup</button>
+    <button class="btn-secondary" onclick="document.getElementById('importFile').click()">Importa Disco Backup</button>
+    <input type="file" id="importFile" style="display:none" onchange="importDatabase(this)">
+</div>
+
+<script>
+    // --- MOTORE DATI SINCRONO (Sostituisce IndexedDB) ---
+    let moviesDB = []; // L'Array in Memoria principale
+    let currentBase64Cover = "";
+    let editingId = null;
+    let editingTimestampAdded = null;
+
+    // Ricalcolo del core generi
+    const GENRES_MAP = {
+        "Azione": "var(--cls-azione)", "Fantascienza": "var(--cls-fantascienza)", "Horror": "var(--cls-horror)",
+        "Thriller": "var(--cls-thriller)", "Drammatico": "var(--cls-drammatico)", "Commedia": "var(--cls-commedia)",
+        "Documentari": "var(--cls-documentari)", "Anime": "var(--cls-anime)", "Classici": "var(--cls-classici)",
+        "Serie TV": "var(--cls-serietv)", "Romantico": "var(--cls-romantico)", "Giallo": "var(--cls-giallo)",
+        "Storico": "var(--cls-storico)", "Avventura": "var(--cls-avventura)", "Fantasy": "var(--cls-fantasy)",
+        "Musicale": "var(--cls-musicale)", "Guerra": "var(--cls-guerra)", "Western": "var(--cls-western)",
+        "Noir": "var(--cls-noir)"
+    };
+
+    // --- SISTEMA CROPPER IMMAGINE HD (Risoluzione Raddoppiata 672x960) ---
+    let rawImage = null;
+    let cropX = 0, cropY = 0;
+    let isDragging = false, startDragX = 0, startDragY = 0;
+    let scaledW = 0, scaledH = 0;
+    let currentScale = 1, minScale = 1;
+    const previewCanvas = document.getElementById('previewCanvas');
+    const pCtx = previewCanvas.getContext('2d');
+
+    // Nuova Calibrazione Ottica Raddoppiata
+    const CANVAS_WIDTH = 672;
+    const CANVAS_HEIGHT = 960;
+    previewCanvas.width = CANVAS_WIDTH; previewCanvas.height = CANVAS_HEIGHT;
+
+    function initImageCrop(input) {
+        const file = input.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            rawImage = new Image();
+            rawImage.onload = function() {
+                document.getElementById('cropperUI').style.display = 'block';
+                cropX = 0; cropY = 0;
+                minScale = Math.max(CANVAS_WIDTH / rawImage.width, CANVAS_HEIGHT / rawImage.height);
+                currentScale = minScale;
+                scaledW = rawImage.width * currentScale;
+                scaledH = rawImage.height * currentScale;
+                cropX = (CANVAS_WIDTH - scaledW) / 2;
+                cropY = (CANVAS_HEIGHT - scaledH) / 2;
+                renderCrop();
+            };
+            rawImage.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function renderCrop() {
+        if(!rawImage) return;
+        pCtx.clearRect(0,0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        const minX = CANVAS_WIDTH - scaledW;
+        const minY = CANVAS_HEIGHT - scaledH;
+        cropX = Math.min(0, Math.max(minX, cropX));
+        cropY = Math.min(0, Math.max(minY, cropY));
+        pCtx.drawImage(rawImage, cropX, cropY, scaledW, scaledH);
+        currentBase64Cover = previewCanvas.toDataURL('image/jpeg', 0.8);
+    }
+
+    function startDrag(e) { if(!rawImage) return; isDragging = true; startDragX = e.clientX || e.touches[0].clientX; startDragY = e.clientY || e.touches[0].clientY; }
+    function doDrag(e) {
+        if(!isDragging) return; e.preventDefault();
+        const currentX = e.clientX || e.touches[0].clientX; const currentY = e.clientY || e.touches[0].clientY;
+        cropX += (currentX - startDragX); cropY += (currentY - startDragY);
+        startDragX = currentX; startDragY = currentY; renderCrop();
+    }
+    function stopDrag() { isDragging = false; }
+
+    function doZoom(e) {
+        if(!rawImage) return;
+        e.preventDefault();
+        const zoomSpeed = 0.05;
+        const zoomAmount = e.deltaY < 0 ? zoomSpeed : -zoomSpeed;
+        const oldW = scaledW;
+        const oldH = scaledH;
+        currentScale += zoomAmount;
+        currentScale = Math.max(minScale, currentScale);
+        scaledW = rawImage.width * currentScale;
+        scaledH = rawImage.height * currentScale;
+        cropX -= (scaledW - oldW) / 2;
+        cropY -= (scaledH - oldH) / 2;
+        renderCrop();
+    }
+
+    previewCanvas.addEventListener('mousedown', startDrag); window.addEventListener('mousemove', doDrag); window.addEventListener('mouseup', stopDrag);
+    previewCanvas.addEventListener('touchstart', startDrag); window.addEventListener('touchmove', doDrag, {passive: false}); window.addEventListener('touchend', stopDrag);
+    previewCanvas.addEventListener('wheel', doZoom, {passive: false});
+
+    // --- MOTORE GRAFICO BACKGROUND ---
+    function initGridAnimation() {
+        const canvas = document.getElementById('bg-canvas'); const ctx = canvas.getContext('2d'); let width, height; const GRID_SIZE = 35;
+        function resize() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resize); resize();
+        class Cycle {
+            constructor(colorHex) { this.color = colorHex; this.reset(window.scrollY); }
+            reset(scrollY = window.scrollY) {
+                const w = window.innerWidth; const h = window.innerHeight; this.x = Math.floor(Math.random() * (w / GRID_SIZE)) * GRID_SIZE;
+                const startGridY = Math.floor(scrollY / GRID_SIZE) - 2; const visibleGridsY = Math.ceil(h / GRID_SIZE) + 4;
+                this.y = (startGridY + Math.floor(Math.random() * visibleGridsY)) * GRID_SIZE;
+                const maxDocHeight = Math.max(document.body.scrollHeight, h); if (this.y < 0) this.y = 0; if (this.y > maxDocHeight) this.y = Math.floor(maxDocHeight / GRID_SIZE) * GRID_SIZE;
+                const dirs = [[1,0], [-1,0], [0,1], [0,-1]]; const d = dirs[Math.floor(Math.random() * dirs.length)]; this.dx = d[0]; this.dy = d[1]; this.history = []; this.maxLength = Math.floor(Math.random() * 60) + 40;
+            }
+            update(scrollY = window.scrollY) {
+                const w = window.innerWidth; const h = window.innerHeight; const maxDocHeight = Math.max(document.body.scrollHeight, h);
+                if (this.x % GRID_SIZE === 0 && this.y % GRID_SIZE === 0) { if (Math.random() < 0.25) { if (this.dx !== 0) { this.dx = 0; this.dy = Math.random() < 0.5 ? 1 : -1; } else { this.dx = Math.random() < 0.5 ? 1 : -1; this.dy = 0; } } }
+                this.x += this.dx * 1; this.y += this.dy * 1;
+                if (this.x % 3 === 0 || this.y % 3 === 0) { this.history.push({x: this.x, y: this.y}); if (this.history.length > this.maxLength) this.history.shift(); }
+                const buffer = 150; if (this.x < 0 || this.x > w || this.y < scrollY - buffer || this.y > scrollY + h + buffer || this.y > maxDocHeight || this.y < 0) { this.reset(scrollY); }
+            }
+            draw(ctx, scrollY = window.scrollY) {
+                if (this.history.length < 2) return;
+                for(let i=0; i<this.history.length-1; i++) {
+                    ctx.beginPath(); ctx.moveTo(this.history[i].x, this.history[i].y - scrollY); ctx.lineTo(this.history[i+1].x, this.history[i+1].y - scrollY);
+                    ctx.strokeStyle = this.color; ctx.globalAlpha = i / this.history.length; ctx.lineWidth = 2;
+                    if (i === this.history.length - 2) { ctx.shadowBlur = 10; ctx.shadowColor = this.color; } else { ctx.shadowBlur = 0; } ctx.stroke();
+                }
+                ctx.globalAlpha = 1.0; ctx.shadowBlur = 8; ctx.shadowColor = this.color; const screenX = this.x; const screenY = this.y - scrollY;
+                ctx.fillStyle = "#ffffff"; ctx.beginPath();
+                if (this.dx !== 0) { ctx.roundRect(screenX - 9, screenY - 3, 18, 6, 3); } else { ctx.roundRect(screenX - 3, screenY - 9, 6, 18, 3); }
+                ctx.fill(); ctx.shadowBlur = 0;
+            }
+        }
+        const bikes = [new Cycle('#00e5ff'), new Cycle('#00e5ff'), new Cycle('#ff6d00'), new Cycle('#ff6d00'), new Cycle('#00e5ff')];
+        function animate() { const scrollY = window.scrollY; ctx.clearRect(0, 0, width, height); bikes.forEach(b => { b.update(scrollY); b.draw(ctx, scrollY); }); requestAnimationFrame(animate); }
+        animate();
+    }
+
+    // --- INIZIALIZZAZIONE DI SISTEMA ---
+    window.onload = function initApp() {
+        // Estrazione Dati dal Disco Locale
+        const storedData = localStorage.getItem('GridArchiveDB');
+        if (storedData) {
+            try {
+                moviesDB = JSON.parse(storedData);
+            } catch(err) {
+                console.error("Anomalia nel parsing del Core: Dati corrotti.");
+                moviesDB = [];
+            }
+        }
+        buildGenreSelectors();
+        renderMovies();
+        initGridAnimation();
+    };
+
+    // Salva l'Array in Memoria nel Local Storage
+    function saveToStorage() {
+        try {
+            localStorage.setItem('GridArchiveDB', JSON.stringify(moviesDB));
+        } catch(e) {
+            alert("ERRORE DI SISTEMA: Limite memoria superato (Immagini troppo pesanti). Esegui Esporta Disco Backup, cancella i file più vecchi dal Core e riprova.");
+        }
+    }
+
+    function buildGenreSelectors() {
+        const grid = document.getElementById('genreSelectorGrid'); const filterDropdown = document.getElementById('filterGenre'); grid.innerHTML = '';
+        Object.keys(GENRES_MAP).forEach(genre => {
+            const label = document.createElement('label'); label.className = 'genre-checkbox-label'; label.style.color = GENRES_MAP[genre];
+            label.innerHTML = `<input type="checkbox" name="genres" value="${genre}"> ${genre}`; grid.appendChild(label);
+            const option = document.createElement('option'); option.value = genre; option.textContent = genre; filterDropdown.appendChild(option);
+        });
+    }
+
+    function switchView(viewName) {
+        document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+        document.getElementById(`section-${viewName}`).classList.add('active');
+
+        const tab = document.getElementById(`tab-${viewName}`);
+        if(tab) tab.classList.add('active');
+
+        const nav = document.getElementById('mainNav');
+        const backup = document.getElementById('backupZone');
+        if(viewName === 'detail') { nav.style.display = 'none'; backup.style.display = 'none'; }
+        else { nav.style.display = 'table'; backup.style.display = 'flex'; }
+        window.scrollTo(0, 0);
+    }
+
+    function resetForm() {
+        editingId = null; editingTimestampAdded = null; rawImage = null; document.getElementById('cropperUI').style.display = 'none'; pCtx.clearRect(0,0,CANVAS_WIDTH,CANVAS_HEIGHT);
+        ['movieTitle', 'movieYear', 'movieDirector', 'movieActors', 'movieSpecs', 'moviePlot', 'movieNotes', 'movieCover'].forEach(id => document.getElementById(id).value = '');
+        document.getElementById('movieFormat').value = 'Blu-ray'; document.querySelectorAll('input[name="genres"]:checked').forEach(cb => cb.checked = false); currentBase64Cover = "";
+        document.getElementById('submitBtn').innerText = "Sincronizza nel Core"; document.getElementById('submitBtn').style.borderColor = "var(--accent-orange)"; document.getElementById('submitBtn').style.color = "var(--accent-orange)"; document.getElementById('cancelBtn').style.display = 'none';
+    }
+
+    function cancelEdit() { resetForm(); switchView('catalog'); }
+
+    function saveMovie() {
+        const titleInput = document.getElementById('movieTitle'); const formatInput = document.getElementById('movieFormat');
+        const checkedGenres = Array.from(document.querySelectorAll('input[name="genres"]:checked')).map(cb => cb.value);
+        if (!titleInput.value.trim()) { alert('ERRORE: Identificativo del titolo obbligatorio.'); return; }
+
+        const now = Date.now();
+        const movieData = {
+            title: titleInput.value.trim(), format: formatInput.value, genres: checkedGenres,
+            year: document.getElementById('movieYear').value.trim() || 'N/A',
+            director: document.getElementById('movieDirector').value.trim() || 'Sconosciuto',
+            actors: document.getElementById('movieActors').value.trim() || 'N/A',
+            specs: document.getElementById('movieSpecs').value.trim() || 'N/A',
+            plot: document.getElementById('moviePlot').value.trim() || 'Nessun dato di trama registrato nel Mainframe.',
+            notes: document.getElementById('movieNotes').value.trim() || 'Nessuna coordinata interna',
+            cover: currentBase64Cover || null,
+            timestampAdded: editingId !== null ? (editingTimestampAdded || now) : now,
+            timestampModified: now
+        };
+
+        if (editingId !== null) {
+            movieData.id = editingId;
+            const index = moviesDB.findIndex(m => m.id === editingId);
+            if(index !== -1) moviesDB[index] = movieData;
+        } else {
+            movieData.id = now; // Identificativo Univoco
+            moviesDB.push(movieData);
+        }
+
+        saveToStorage();
+        resetForm();
+        switchView('catalog');
+        renderMovies();
+    }
+
+    function editMovie(id, e) {
+        if(e) e.stopPropagation();
+
+        const movie = moviesDB.find(m => m.id === id);
+        if(!movie) return;
+
+        document.getElementById('movieTitle').value = movie.title; document.getElementById('movieFormat').value = movie.format;
+        document.getElementById('movieYear').value = movie.year || ''; document.getElementById('movieDirector').value = movie.director || '';
+        document.getElementById('movieActors').value = movie.actors || ''; document.getElementById('movieSpecs').value = movie.specs || '';
+        document.getElementById('moviePlot').value = movie.plot || ''; document.getElementById('movieNotes').value = movie.notes || '';
+
+        document.querySelectorAll('input[name="genres"]').forEach(cb => { cb.checked = movie.genres.includes(cb.value); });
+
+        currentBase64Cover = movie.cover || "";
+        if (currentBase64Cover) {
+            const img = new Image(); img.onload = () => {
+                rawImage = img; document.getElementById('cropperUI').style.display = 'block'; cropX = 0; cropY = 0;
+                minScale = Math.max(CANVAS_WIDTH / rawImage.width, CANVAS_HEIGHT / rawImage.height); currentScale = minScale;
+                scaledW = rawImage.width * currentScale; scaledH = rawImage.height * currentScale;
+                cropX = (CANVAS_WIDTH - scaledW) / 2; cropY = (CANVAS_HEIGHT - scaledH) / 2;
+                renderCrop();
+            }; img.src = currentBase64Cover;
+        } else { document.getElementById('cropperUI').style.display = 'none'; }
+
+        editingId = movie.id;
+        editingTimestampAdded = movie.timestampAdded || Date.now();
+        const submitBtn = document.getElementById('submitBtn'); submitBtn.innerText = "Sovrascrivi Dati nel Core"; submitBtn.style.borderColor = "var(--accent-cyan)"; submitBtn.style.color = "var(--accent-cyan)"; document.getElementById('cancelBtn').style.display = 'block';
+        switchView('add');
+    }
+
+    function deleteMovie(id, e) {
+        if(e) e.stopPropagation();
+        if(confirm("ELIMINAZIONE DEFINITIVA: Procedere con la rimozione dei cluster dati?")) {
+            moviesDB = moviesDB.filter(m => m.id !== id);
+            saveToStorage();
+            renderMovies();
+        }
+    }
+
+    function showMovieDetail(id) {
+        const m = moviesDB.find(movie => movie.id === id);
+        if(!m) return;
+
+        let coverHTML = m.cover ? `<img src="${m.cover}" class="detail-cover" alt="Cover">` : `<div class="detail-cover" style="height:480px; background:#05080f; display:flex; align-items:center; justify-content:center; color:var(--text-dark);">[ NO VISUAL DATA ]</div>`;
+        let genresHTML = m.genres.map(g => `<span class="genre-tag" style="color: ${GENRES_MAP[g] || '#fff'}; padding: 2px 6px; border: 1px solid ${GENRES_MAP[g]}; border-radius: 3px; margin-right: 5px;">${g}</span>`).join('');
+
+        const content = document.getElementById('detailContent');
+        content.innerHTML = `
+            <div class="detail-header">
+                ${coverHTML}
+                <div class="detail-title-overlay">
+                    <h2 class="detail-title">${m.title} <span style="font-size:1rem; color:var(--accent-orange);">[${m.year || 'N/A'}]</span></h2>
+                    <div style="margin-top: 10px;">${genresHTML}</div>
+                </div>
+            </div>
+            <div style="padding: 20px;">
+                <div class="detail-grid">
+                    <div>
+                        <div class="data-panel plot-panel">
+                            <h3>Scansione Flusso (Trama)</h3>
+                            <p>${m.plot || '---'}</p>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="data-panel">
+                            <h3>Supporto Master</h3>
+                            <p style="color: ${m.format === 'Blu-ray' ? 'var(--accent-cyan)' : 'var(--accent-orange)'}; font-weight:bold;">${m.format}</p>
+                        </div>
+                        <div class="data-panel">
+                            <h3>Regista Creatore</h3>
+                            <p>${m.director || '---'}</p>
+                        </div>
+                        <div class="data-panel">
+                            <h3>Programmi / Attori</h3>
+                            <p>${m.actors || '---'}</p>
+                        </div>
+                        <div class="data-panel">
+                            <h3>Specifiche Tech (Nerd Info)</h3>
+                            <p style="color: var(--text-dark);">${m.specs || '---'}</p>
+                        </div>
+                        <div class="data-panel">
+                            <h3>Coordinate Scaffale</h3>
+                            <p style="color: var(--text-dark);">${m.notes || '---'}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        switchView('detail');
+    }
+
+    function renderMovies() {
+        const grid = document.getElementById('movieGrid');
+        const qTitle = document.getElementById('searchBar').value.toLowerCase();
+        const qDir = document.getElementById('filterDirector').value.toLowerCase();
+        const qAct = document.getElementById('filterActors').value.toLowerCase();
+        const qYear = document.getElementById('filterYear').value.toLowerCase();
+        const qSpecs = document.getElementById('filterSpecs').value.toLowerCase();
+        const fFormat = document.getElementById('filterFormat').value;
+        const fGenre = document.getElementById('filterGenre').value;
+
+        const sortCriteria = document.getElementById('sortCriteria').value;
+        const sortDirection = document.getElementById('sortDirection').value;
+
+        grid.innerHTML = '';
+
+        // Filtraggio Nodi Array
+        let filteredMovies = moviesDB.filter(movie => {
+            const matchTitle = movie.title.toLowerCase().includes(qTitle);
+            const matchDir = (movie.director || "").toLowerCase().includes(qDir);
+            const matchAct = (movie.actors || "").toLowerCase().includes(qAct);
+            const matchYear = (movie.year || "").toLowerCase().includes(qYear);
+            const matchSpecs = (movie.specs || "").toLowerCase().includes(qSpecs);
+            const matchFormat = (fFormat === 'ALL' || movie.format === fFormat);
+            const matchGenre = (fGenre === 'ALL' || movie.genres.includes(fGenre));
+            return matchTitle && matchDir && matchAct && matchYear && matchSpecs && matchFormat && matchGenre;
+        });
+
+        // Organizzatore Matrice
+        filteredMovies.sort((a, b) => {
+            let valA, valB;
+            if (sortCriteria === 'alpha') {
+                valA = a.title.toLowerCase(); valB = b.title.toLowerCase();
+                if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+                if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+                return 0;
+            } else if (sortCriteria === 'added') {
+                valA = a.timestampAdded || 0; valB = b.timestampAdded || 0;
+                return sortDirection === 'asc' ? valA - valB : valB - valA;
+            } else if (sortCriteria === 'modified') {
+                valA = a.timestampModified || 0; valB = b.timestampModified || 0;
+                return sortDirection === 'asc' ? valA - valB : valB - valA;
+            }
+        });
+
+        // Generazione Visiva
+        filteredMovies.forEach(movie => {
+            const card = document.createElement('div'); card.className = `movie-card ${movie.format.toLowerCase()}`;
+            card.setAttribute('onclick', `showMovieDetail(${movie.id})`);
+
+            let coverHTML = `<div class="cover-display">[ No Matrix Data ]</div>`;
+            if(movie.cover) coverHTML = `<img src="${movie.cover}" class="cover-display" alt="Cover">`;
+
+            let genresHTML = '<div class="genres-container">';
+            movie.genres.forEach(g => { genresHTML += `<span class="genre-tag" style="color: ${GENRES_MAP[g] || 'var(--text-neon)'};">${g}</span> `; });
+            genresHTML += '</div>';
+
+            card.innerHTML = `
+                <div class="card-actions">
+                    <button class="icon-btn edit-btn" onclick="editMovie(${movie.id}, event)">✎</button>
+                    <button class="icon-btn delete-btn" onclick="deleteMovie(${movie.id}, event)">&times;</button>
+                </div>
+                ${coverHTML}
+                <div class="card-info">
+                    <div>
+                        <div class="movie-title">${movie.title}</div>
+                        <div class="movie-meta-short">${movie.year || ''} | ${movie.director || ''}</div>
+                        ${genresHTML}
+                    </div>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    function exportDatabase() {
+        if(moviesDB.length === 0) return alert("Database vuoto. Nessun cluster da esportare.");
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(moviesDB));
+        const downloadAnchor = document.createElement('a'); downloadAnchor.setAttribute("href", dataStr); downloadAnchor.setAttribute("download", "grid_archive_master_backup.json"); document.body.appendChild(downloadAnchor); downloadAnchor.click(); downloadAnchor.remove();
+    }
+
+    function importDatabase(input) {
+        const file = input.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const imported = JSON.parse(e.target.result);
+                if (Array.isArray(imported)) {
+                    if(confirm(`Attenzione: sovrascrittura totale del Core in corso. Procedere con l'iniezione?`)) {
+                        moviesDB = imported;
+                        saveToStorage();
+                        alert("Iniezione Dati completata con successo.");
+                        renderMovies();
+                    }
+                }
+            } catch (err) { alert("ERRORE JSON: Disco dati corrotto o non compatibile."); }
+        }; reader.readAsText(file);
+    }
+</script>
+</body>
+</html>
