@@ -437,8 +437,8 @@
 </div>
 
 <script>
-    // --- MOTORE DATI SINCRONO (Sostituisce IndexedDB) ---
-    let moviesDB = []; // L'Array in Memoria principale
+    // --- MOTORE DATI (Connesso al Core Firebase) ---
+    window.moviesDB = []; // L'Array Globale che specchia i dati del Cloud
     let currentBase64Cover = "";
     let editingId = null;
     let editingTimestampAdded = null;
@@ -454,7 +454,7 @@
         "Noir": "var(--cls-noir)"
     };
 
-    // --- SISTEMA CROPPER IMMAGINE HD (Risoluzione Raddoppiata 672x960) ---
+    // --- SISTEMA CROPPER IMMAGINE HD ---
     let rawImage = null;
     let cropX = 0, cropY = 0;
     let isDragging = false, startDragX = 0, startDragY = 0;
@@ -463,7 +463,6 @@
     const previewCanvas = document.getElementById('previewCanvas');
     const pCtx = previewCanvas.getContext('2d');
 
-    // Nuova Calibrazione Ottica Raddoppiata
     const CANVAS_WIDTH = 672;
     const CANVAS_HEIGHT = 960;
     previewCanvas.width = CANVAS_WIDTH; previewCanvas.height = CANVAS_HEIGHT;
@@ -568,31 +567,12 @@
         animate();
     }
 
-    // --- INIZIALIZZAZIONE DI SISTEMA ---
+    // --- INIZIALIZZAZIONE DI SISTEMA UI ---
     window.onload = function initApp() {
-        // Estrazione Dati dal Disco Locale
-        const storedData = localStorage.getItem('GridArchiveDB');
-        if (storedData) {
-            try {
-                moviesDB = JSON.parse(storedData);
-            } catch(err) {
-                console.error("Anomalia nel parsing del Core: Dati corrotti.");
-                moviesDB = [];
-            }
-        }
         buildGenreSelectors();
-        renderMovies();
         initGridAnimation();
+        // I dati ora vengono scaricati dal modulo Firebase al completamento dell'Auth
     };
-
-    // Salva l'Array in Memoria nel Local Storage
-    function saveToStorage() {
-        try {
-            localStorage.setItem('GridArchiveDB', JSON.stringify(moviesDB));
-        } catch(e) {
-            alert("ERRORE DI SISTEMA: Limite memoria superato (Immagini troppo pesanti). Esegui Esporta Disco Backup, cancella i file più vecchi dal Core e riprova.");
-        }
-    }
 
     function buildGenreSelectors() {
         const grid = document.getElementById('genreSelectorGrid'); const filterDropdown = document.getElementById('filterGenre'); grid.innerHTML = '';
@@ -603,7 +583,7 @@
         });
     }
 
-    function switchView(viewName) {
+    window.switchView = function(viewName) {
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
         document.getElementById(`section-${viewName}`).classList.add('active');
@@ -622,12 +602,14 @@
         editingId = null; editingTimestampAdded = null; rawImage = null; document.getElementById('cropperUI').style.display = 'none'; pCtx.clearRect(0,0,CANVAS_WIDTH,CANVAS_HEIGHT);
         ['movieTitle', 'movieYear', 'movieDirector', 'movieActors', 'movieSpecs', 'moviePlot', 'movieNotes', 'movieCover'].forEach(id => document.getElementById(id).value = '');
         document.getElementById('movieFormat').value = 'Blu-ray'; document.querySelectorAll('input[name="genres"]:checked').forEach(cb => cb.checked = false); currentBase64Cover = "";
-        document.getElementById('submitBtn').innerText = "Sincronizza nel Core"; document.getElementById('submitBtn').style.borderColor = "var(--accent-orange)"; document.getElementById('submitBtn').style.color = "var(--accent-orange)"; document.getElementById('cancelBtn').style.display = 'none';
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.innerText = "Sincronizza nel Core"; submitBtn.style.borderColor = "var(--accent-orange)"; submitBtn.style.color = "var(--accent-orange)"; document.getElementById('cancelBtn').style.display = 'none';
+        submitBtn.disabled = false;
     }
 
-    function cancelEdit() { resetForm(); switchView('catalog'); }
+    window.cancelEdit = function() { resetForm(); switchView('catalog'); }
 
-    function saveMovie() {
+    window.saveMovie = async function() {
         const titleInput = document.getElementById('movieTitle'); const formatInput = document.getElementById('movieFormat');
         const checkedGenres = Array.from(document.querySelectorAll('input[name="genres"]:checked')).map(cb => cb.value);
         if (!titleInput.value.trim()) { alert('ERRORE: Identificativo del titolo obbligatorio.'); return; }
@@ -646,25 +628,25 @@
             timestampModified: now
         };
 
-        if (editingId !== null) {
-            movieData.id = editingId;
-            const index = moviesDB.findIndex(m => m.id === editingId);
-            if(index !== -1) moviesDB[index] = movieData;
+        const btn = document.getElementById('submitBtn');
+        btn.innerText = "Sincronizzazione Uplink in corso...";
+        btn.disabled = true;
+
+        // Passiamo i dati al ponte Firebase Globale
+        if(window.saveToFirebase) {
+            await window.saveToFirebase(movieData, editingId);
         } else {
-            movieData.id = now; // Identificativo Univoco
-            moviesDB.push(movieData);
+            console.error("Modulo Firebase non allineato.");
         }
 
-        saveToStorage();
         resetForm();
         switchView('catalog');
-        renderMovies();
     }
 
-    function editMovie(id, e) {
+    window.editMovie = function(id, e) {
         if(e) e.stopPropagation();
 
-        const movie = moviesDB.find(m => m.id === id);
+        const movie = window.moviesDB.find(m => m.id === id);
         if(!movie) return;
 
         document.getElementById('movieTitle').value = movie.title; document.getElementById('movieFormat').value = movie.format;
@@ -691,17 +673,17 @@
         switchView('add');
     }
 
-    function deleteMovie(id, e) {
+    window.deleteMovie = async function(id, e) {
         if(e) e.stopPropagation();
-        if(confirm("ELIMINAZIONE DEFINITIVA: Procedere con la rimozione dei cluster dati?")) {
-            moviesDB = moviesDB.filter(m => m.id !== id);
-            saveToStorage();
-            renderMovies();
+        if(confirm("ELIMINAZIONE DEFINITIVA: Procedere con la rimozione dei cluster dati dal Core Remoto?")) {
+            if(window.deleteFromFirebase) {
+                await window.deleteFromFirebase(id);
+            }
         }
     }
 
-    function showMovieDetail(id) {
-        const m = moviesDB.find(movie => movie.id === id);
+    window.showMovieDetail = function(id) {
+        const m = window.moviesDB.find(movie => movie.id === id);
         if(!m) return;
 
         let coverHTML = m.cover ? `<img src="${m.cover}" class="detail-cover" alt="Cover">` : `<div class="detail-cover" style="height:480px; background:#05080f; display:flex; align-items:center; justify-content:center; color:var(--text-dark);">[ NO VISUAL DATA ]</div>`;
@@ -752,7 +734,7 @@
         switchView('detail');
     }
 
-    function renderMovies() {
+    window.renderMovies = function() {
         const grid = document.getElementById('movieGrid');
         const qTitle = document.getElementById('searchBar').value.toLowerCase();
         const qDir = document.getElementById('filterDirector').value.toLowerCase();
@@ -767,8 +749,8 @@
 
         grid.innerHTML = '';
 
-        // Filtraggio Nodi Array
-        let filteredMovies = moviesDB.filter(movie => {
+        // Filtraggio Nodi Array Globale
+        let filteredMovies = window.moviesDB.filter(movie => {
             const matchTitle = movie.title.toLowerCase().includes(qTitle);
             const matchDir = (movie.director || "").toLowerCase().includes(qDir);
             const matchAct = (movie.actors || "").toLowerCase().includes(qAct);
@@ -796,10 +778,10 @@
             }
         });
 
-        // Generazione Visiva
+        // Generazione Visiva (Nota: ID di Firestore sono stringhe, devono avere gli apici nei richiami onclick)
         filteredMovies.forEach(movie => {
             const card = document.createElement('div'); card.className = `movie-card ${movie.format.toLowerCase()}`;
-            card.setAttribute('onclick', `showMovieDetail(${movie.id})`);
+            card.setAttribute('onclick', `showMovieDetail('${movie.id}')`);
 
             let coverHTML = `<div class="cover-display">[ No Matrix Data ]</div>`;
             if(movie.cover) coverHTML = `<img src="${movie.cover}" class="cover-display" alt="Cover">`;
@@ -810,8 +792,8 @@
 
             card.innerHTML = `
                 <div class="card-actions">
-                    <button class="icon-btn edit-btn" onclick="editMovie(${movie.id}, event)">✎</button>
-                    <button class="icon-btn delete-btn" onclick="deleteMovie(${movie.id}, event)">&times;</button>
+                    <button class="icon-btn edit-btn" onclick="editMovie('${movie.id}', event)">✎</button>
+                    <button class="icon-btn delete-btn" onclick="deleteMovie('${movie.id}', event)">&times;</button>
                 </div>
                 ${coverHTML}
                 <div class="card-info">
@@ -826,38 +808,43 @@
         });
     }
 
-    function exportDatabase() {
-        if(moviesDB.length === 0) return alert("Database vuoto. Nessun cluster da esportare.");
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(moviesDB));
+    window.exportDatabase = function() {
+        if(window.moviesDB.length === 0) return alert("Database vuoto. Nessun cluster da esportare.");
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(window.moviesDB));
         const downloadAnchor = document.createElement('a'); downloadAnchor.setAttribute("href", dataStr); downloadAnchor.setAttribute("download", "grid_archive_master_backup.json"); document.body.appendChild(downloadAnchor); downloadAnchor.click(); downloadAnchor.remove();
     }
 
-    function importDatabase(input) {
+    window.importDatabase = async function(input) {
         const file = input.files[0]; if (!file) return;
         const reader = new FileReader();
-        reader.onload = function(e) {
+        reader.onload = async function(e) {
             try {
                 const imported = JSON.parse(e.target.result);
                 if (Array.isArray(imported)) {
-                    if(confirm(`Attenzione: sovrascrittura totale del Core in corso. Procedere con l'iniezione?`)) {
-                        moviesDB = imported;
-                        saveToStorage();
-                        alert("Iniezione Dati completata con successo.");
-                        renderMovies();
+                    if(confirm(`Attenzione: iniezione multipla nel Core Firebase. I cluster duplicati verranno ignorati o aggiunti come nuovi. Procedere?`)) {
+                        for(let movie of imported) {
+                            delete movie.id; // Rimuovo il vecchio ID per lasciare che Firestore crei il nuovo
+                            if(window.saveToFirebase) {
+                                await window.saveToFirebase(movie, null, false);
+                            }
+                        }
+                        if(window.loadFromFirebase) await window.loadFromFirebase();
+                        alert("Iniezione Dati nel Core completata con successo.");
                     }
                 }
             } catch (err) { alert("ERRORE JSON: Disco dati corrotto o non compatibile."); }
         }; reader.readAsText(file);
     }
 </script>
+
 <!-- MODULO FIREBASE E AUTENTICAZIONE -->
 <script type="module">
     // 1. Importa i moduli di Firebase
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-    import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-    // 2. SOSTITUISCI QUESTO BLOCCO con i tuoi dati di Firebase (Project settings -> General -> Your apps)
+    // 2. I tuoi Dati Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyCkHylWkeYkv-8O_gF9Ge7yW1DSC2dfc0I",
       authDomain: "the-grid---core-archive.firebaseapp.com",
@@ -872,14 +859,58 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    // 4. Elementi dell'interfaccia
+    // 4. CREAZIONE DEL PONTE GLOBALE PER LA UI
+    // Esponiamo i comandi al Mainframe per interfacciarli con lo script standard
+
+    window.loadFromFirebase = async () => {
+        try {
+            const querySnapshot = await getDocs(collection(db, "movies"));
+            window.moviesDB = querySnapshot.docs.map(documento => {
+                let data = documento.data();
+                data.id = documento.id; // Assegna l'ID generato da Firestore
+                return data;
+            });
+            if(window.renderMovies) window.renderMovies();
+        } catch (e) {
+            console.error("Anomalia nel recupero del Core:", e);
+        }
+    };
+
+    // Il parametro autoReload previene lag durante le importazioni massive
+    window.saveToFirebase = async (movieData, id, autoReload = true) => {
+        try {
+            if (id) {
+                // Aggiorna ciclo dati esistente
+                const movieRef = doc(db, "movies", id);
+                await updateDoc(movieRef, movieData);
+            } else {
+                // Nuovo ciclo dati
+                await addDoc(collection(db, "movies"), movieData);
+            }
+            if (autoReload) await window.loadFromFirebase();
+        } catch (e) {
+            console.error("Anomalia Sincronizzazione:", e);
+            alert("Errore critico di sincronizzazione col Core Remoto.");
+        }
+    };
+
+    window.deleteFromFirebase = async (id) => {
+        try {
+            await deleteDoc(doc(db, "movies", id));
+            await window.loadFromFirebase();
+        } catch (e) {
+            console.error("Anomalia Eliminazione:", e);
+        }
+    };
+
+    // 5. Elementi dell'interfaccia
     const loginScreen = document.getElementById('login-screen');
     const loginBtn = document.getElementById('login-btn');
     const emailInput = document.getElementById('login-email');
     const passwordInput = document.getElementById('login-password');
     const errorText = document.getElementById('login-error');
 
-    // 5. Funzione di Autenticazione (Click sul pulsante)
+    // 6. Funzione di Autenticazione
     loginBtn.addEventListener('click', () => {
       const email = emailInput.value;
       const password = passwordInput.value;
@@ -887,34 +918,38 @@
 
       signInWithEmailAndPassword(auth, email, password)
         .then((userCredential) => {
-          // Accesso consentito
           errorText.textContent = "";
           emailInput.value = "";
           passwordInput.value = "";
         })
         .catch((error) => {
-          // Accesso negato
           errorText.textContent = "Accesso negato. Credenziali non valide.";
           console.error("Errore di sistema:", error.message);
         });
     });
 
-    // 6. Ascoltatore di Stato (Controlla sempre se l'utente è dentro o fuori)
+    // 7. Ascoltatore di Stato e Richiamo Iniziale
     onAuthStateChanged(auth, (user) => {
       if (user) {
-        // Utente verificato: Rimuovi lo scudo nero e mostra la Grid
+        // Utente verificato: Rimozione Barriera
         loginScreen.style.opacity = '0';
         setTimeout(() => {
           loginScreen.style.display = 'none';
         }, 500);
 
         console.log("Accesso alla Grid autorizzato per:", user.email);
-        // Qui in futuro aggiungeremo il richiamo per scaricare i dati da Firestore
+
+        // Inizializza il Download dei Dati dal Core
+        window.loadFromFirebase();
 
       } else {
-        // Utente disconnesso: Attiva lo scudo nero
+        // Barriera Attivata
         loginScreen.style.display = 'flex';
         loginScreen.style.opacity = '1';
+
+        // Svuota array in caso di logout forzato
+        window.moviesDB = [];
+        if(window.renderMovies) window.renderMovies();
       }
     });
 </script>

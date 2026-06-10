@@ -1,4 +1,4 @@
-const CACHE_NAME = 'grid-core-v2';
+const CACHE_NAME = 'grid-core-v3';
 const ASSETS = [
   'index.html',
   'manifest.json',
