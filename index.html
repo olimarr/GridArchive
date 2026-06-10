@@ -18,6 +18,87 @@
         }
     </script>
     <style>
+        /* --- STILI SCHERMATA DI LOGIN --- */
+#login-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #000000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999; /* Sta sempre in primo piano */
+  transition: opacity 0.5s ease;
+}
+
+.login-container {
+  background-color: #090d16;
+  border: 1px solid #00ffff;
+  padding: 40px;
+  border-radius: 8px;
+  text-align: center;
+  width: 90%;
+  max-width: 400px;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+}
+
+.login-title {
+  color: #00ffff;
+  font-family: monospace;
+  font-size: 2rem;
+  margin-bottom: 5px;
+  letter-spacing: 2px;
+}
+
+.login-subtitle {
+  color: #555555;
+  font-family: monospace;
+  font-size: 0.9rem;
+  margin-bottom: 30px;
+}
+
+#login-email, #login-password {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 15px;
+  background-color: #000000;
+  border: 1px solid #333333;
+  color: #ffffff;
+  font-family: monospace;
+  box-sizing: border-box;
+}
+
+#login-email:focus, #login-password:focus {
+  border-color: #00ffff;
+  outline: none;
+}
+
+#login-btn {
+  width: 100%;
+  padding: 12px;
+  background-color: transparent;
+  color: #00ffff;
+  border: 1px solid #00ffff;
+  font-family: monospace;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+#login-btn:hover {
+  background-color: #00ffff;
+  color: #000000;
+}
+
+.error-text {
+  color: #ff0044;
+  margin-top: 15px;
+  font-family: monospace;
+  font-size: 0.85rem;
+  min-height: 20px;
+}
         :root {
             --bg-pure: #000000;
             --surface-tech: #090d16;
@@ -189,6 +270,20 @@
     </style>
 </head>
 <body>
+<!-- SCHERMATA DI LOGIN FIREBASE -->
+<div id="login-screen">
+    <div class="login-container">
+        <h1 class="login-title">THE GRID</h1>
+        <p class="login-subtitle">IDENTIFICAZIONE RICHIESTA</p>
+
+        <input type="email" id="login-email" placeholder="Email di accesso" required>
+        <input type="password" id="login-password" placeholder="Password di decrittazione" required>
+
+        <button id="login-btn">INIZIALIZZA CONNESSIONE</button>
+        <p id="login-error" class="error-text"></p>
+    </div>
+</div>
+<!-- FINE SCHERMATA DI LOGIN -->
 
 <canvas id="bg-canvas"></canvas>
 
@@ -754,6 +849,74 @@
             } catch (err) { alert("ERRORE JSON: Disco dati corrotto o non compatibile."); }
         }; reader.readAsText(file);
     }
+</script>
+<!-- MODULO FIREBASE E AUTENTICAZIONE -->
+<script type="module">
+    // 1. Importa i moduli di Firebase
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+    import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+    // 2. SOSTITUISCI QUESTO BLOCCO con i tuoi dati di Firebase (Project settings -> General -> Your apps)
+    const firebaseConfig = {
+      apiKey: "AIzaSyCkHylWkeYkv-8O_gF9Ge7yW1DSC2dfc0I",
+      authDomain: "the-grid---core-archive.firebaseapp.com",
+      projectId: "the-grid---core-archive",
+      storageBucket: "the-grid---core-archive.firebasestorage.app",
+      messagingSenderId: "108411615934",
+      appId: "1:108411615934:web:934f582699fe60878ebcef"
+    };
+
+    // 3. Inizializza l'applicazione Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // 4. Elementi dell'interfaccia
+    const loginScreen = document.getElementById('login-screen');
+    const loginBtn = document.getElementById('login-btn');
+    const emailInput = document.getElementById('login-email');
+    const passwordInput = document.getElementById('login-password');
+    const errorText = document.getElementById('login-error');
+
+    // 5. Funzione di Autenticazione (Click sul pulsante)
+    loginBtn.addEventListener('click', () => {
+      const email = emailInput.value;
+      const password = passwordInput.value;
+      errorText.textContent = "Verifica credenziali in corso...";
+
+      signInWithEmailAndPassword(auth, email, password)
+        .then((userCredential) => {
+          // Accesso consentito
+          errorText.textContent = "";
+          emailInput.value = "";
+          passwordInput.value = "";
+        })
+        .catch((error) => {
+          // Accesso negato
+          errorText.textContent = "Accesso negato. Credenziali non valide.";
+          console.error("Errore di sistema:", error.message);
+        });
+    });
+
+    // 6. Ascoltatore di Stato (Controlla sempre se l'utente è dentro o fuori)
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // Utente verificato: Rimuovi lo scudo nero e mostra la Grid
+        loginScreen.style.opacity = '0';
+        setTimeout(() => {
+          loginScreen.style.display = 'none';
+        }, 500);
+
+        console.log("Accesso alla Grid autorizzato per:", user.email);
+        // Qui in futuro aggiungeremo il richiamo per scaricare i dati da Firestore
+
+      } else {
+        // Utente disconnesso: Attiva lo scudo nero
+        loginScreen.style.display = 'flex';
+        loginScreen.style.opacity = '1';
+      }
+    });
 </script>
 </body>
 </html>
