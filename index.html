@@ -871,7 +871,7 @@
     // 1. Importa i moduli di Firebase
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-    import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+    import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
     // 2. I tuoi Dati Firebase
     const firebaseConfig = {
@@ -887,6 +887,15 @@
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
+
+    // --- ATTIVAZIONE PERSISTENZA OFFLINE (IndexedDB) ---
+    enableIndexedDbPersistence(db).catch((err) => {
+        if (err.code == 'failed-precondition') {
+            console.log('Attenzione: La persistenza funziona solo se hai una singola scheda della Grid aperta nel browser.');
+        } else if (err.code == 'unimplemented') {
+            console.log('Il browser attuale non supporta il salvataggio offline.');
+        }
+    });
 
     // 4. CREAZIONE DEL PONTE GLOBALE PER LA UI
     // Esponiamo i comandi al Mainframe per interfacciarli con lo script standard
