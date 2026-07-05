@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>The Grid: Core Archive</title>
-    <!-- Collegamento al Manifest della PWA -->
     <link rel="manifest" href="manifest.json">
-    <!-- Ottimizzazione per la barra di stato mobile -->
     <meta name="theme-color" content="#090d16">
 
     <script>
@@ -105,6 +103,7 @@
             --surface-card: #101726;
             --accent-cyan: #00e5ff;
             --accent-orange: #ff6d00;
+            --accent-green: #00ff00;
             --accent-vector: #1a293d;
             --text-neon: #e0f7fa;
             --text-dark: #6272a4;
@@ -120,7 +119,7 @@
             --cls-classici: #ffffff;
             --cls-serietv: #0088ff;
 
-            /* Nuovi Nodi Classificativi */
+            /* Nodi Classificativi Estesi */
             --cls-romantico: #ff3399;
             --cls-giallo: #d4ff00;
             --cls-storico: #a0c4ff;
@@ -217,7 +216,7 @@
             display: block; font-size: 0.8rem; color: var(--accent-cyan); margin-bottom: 8px;
             text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 5px rgba(0, 229, 255, 0.4);
         }
-        input[type="text"], textarea, select {
+        input[type="text"], input[type="email"], input[type="password"], textarea, select {
             width: 100%; padding: 12px; background: var(--bg-pure); border: 1px solid var(--accent-vector);
             color: var(--text-neon); font-size: 1rem;
         }
@@ -261,6 +260,19 @@
         .movie-card:hover { transform: translateY(-5px); box-shadow: 0 5px 20px rgba(0, 229, 255, 0.2); border-color: var(--accent-cyan); }
         .movie-card.blu-ray { border-top: 4px solid var(--accent-cyan); }
         .movie-card.dvd { border-top: 4px solid var(--accent-orange); }
+        /* Stile Raggruppatore - Linea Verde */
+        .movie-card.collection { border-top: 4px solid var(--accent-green); }
+
+        /* Animazione a cascata per i film dentro i raggruppatori */
+        .stagger-card {
+            opacity: 0;
+            transform: translateY(60px);
+            animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes slideUpFade {
+            0% { opacity: 0; transform: translateY(60px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
 
         .cover-display {
             width: 100%; height: 260px; background: #05080f; background-image: linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px);
@@ -280,9 +292,11 @@
         .icon-btn:hover { background: var(--surface-tech); }
 
         .detail-header { position: relative; margin-bottom: 20px; border: 1px solid var(--accent-cyan); box-shadow: 0 0 20px rgba(0,229,255,0.2); background-color: #000; }
+        .detail-header.collection-header { border-color: var(--accent-green); box-shadow: 0 0 20px rgba(0,255,0,0.2); }
         .detail-cover { width: 100%; max-height: 600px; object-fit: contain; display: block; opacity: 0.85; margin: 0 auto; }
         .detail-title-overlay { position: absolute; bottom: 0; left: 0; width: 100%; padding: 30px 20px 20px 20px; background: linear-gradient(transparent, #000 80%); }
         .detail-title { font-size: 2rem; color: #fff; text-shadow: 0 0 15px var(--accent-cyan); text-transform: uppercase; letter-spacing: 2px; }
+        .detail-header.collection-header .detail-title { text-shadow: 0 0 15px var(--accent-green); }
         .detail-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
         @media(max-width: 768px) { .detail-grid { grid-template-columns: 1fr; } }
         .data-panel { border-left: 3px solid var(--accent-cyan); padding-left: 15px; margin-bottom: 20px; }
@@ -290,12 +304,14 @@
         .data-panel p { color: #fff; font-size: 1rem; line-height: 1.5; white-space: pre-wrap; }
         .data-panel.plot-panel p { font-size: 0.95rem; color: var(--text-neon); text-align: justify; }
 
-        .backup-zone { margin-top: 40px; padding: 15px; border-top: 1px solid var(--accent-vector); display: flex; gap: 10px; background: rgba(9, 13, 22, 0.8); }
+        .backup-zone { margin-bottom: 20px; padding: 15px; border: 1px solid var(--accent-vector); display: flex; gap: 10px; background: rgba(9, 13, 22, 0.8); }
         .btn-secondary { flex: 1; padding: 10px; background: var(--surface-tech); border: 1px solid var(--text-dark); color: var(--text-neon); font-size: 0.7rem; cursor: pointer; text-transform: uppercase; }
+
+        .cb-collection-row { display:flex; align-items:center; gap:12px; background:var(--surface-card); padding:12px; border:1px solid var(--accent-vector); cursor:pointer; margin-bottom: 8px; transition: 0.2s; }
+        .cb-collection-row:hover { border-color: var(--accent-cyan); }
     </style>
 </head>
 <body>
-<!-- SCHERMATA DI LOGIN FIREBASE -->
 <div id="login-screen">
     <div class="login-container">
         <h1 class="login-title">THE GRID</h1>
@@ -308,8 +324,6 @@
         <p id="login-error" class="error-text"></p>
     </div>
 </div>
-<!-- FINE SCHERMATA DI LOGIN -->
-
 <canvas id="bg-canvas"></canvas>
 
 <header class="main-header">
@@ -345,25 +359,30 @@
     <div class="nav-tab" id="tab-add" onclick="switchView('add')">Uplink Nuovo Dato</div>
 </div>
 
-<!-- CATALOGO -->
 <div id="section-catalog" class="view-section active">
+    <div class="backup-zone" id="backupZone">
+        <button class="btn-secondary" onclick="exportDatabase()">Esporta Disco Backup</button>
+        <button class="btn-secondary" onclick="document.getElementById('importFile').click()">Importa Disco Backup</button>
+        <input type="file" id="importFile" style="display:none" onchange="importDatabase(this)">
+    </div>
+
     <div class="search-container">
         <input type="text" id="searchBar" placeholder="Cerca nel Titolo..." oninput="renderMovies()">
         <div class="filters-grid">
             <input type="text" id="filterDirector" placeholder="Cerca Regista..." oninput="renderMovies()">
             <input type="text" id="filterActors" placeholder="Cerca Attori..." oninput="renderMovies()">
             <input type="text" id="filterYear" placeholder="Anno Uscita..." oninput="renderMovies()">
-            <input type="text" id="filterSpecs" placeholder="Dati Tecnici/Nerd Info..." oninput="renderMovies()">
+            <input type="text" id="filterSpecs" placeholder="Dati Tecnici / Descrizione..." oninput="renderMovies()">
             <select id="filterFormat" onchange="renderMovies()">
-                <option value="ALL">// Formato Supporto: Tutti</option>
+                <option value="ALL">// Formato / Tipologia: Tutti</option>
                 <option value="Blu-ray">Blu-ray</option>
                 <option value="DVD">DVD</option>
+                <option value="Collection">Raggruppatori (Collezioni)</option>
             </select>
             <select id="filterGenre" onchange="renderMovies()">
                 <option value="ALL">// Genere Matrice: Tutti</option>
             </select>
         </div>
-        <!-- Modulo Organizer -->
         <div class="sort-grid">
             <select id="sortCriteria" onchange="renderMovies()">
                 <option value="alpha">// Ordina per: Alfabetico</option>
@@ -379,63 +398,80 @@
     <div class="movie-grid" id="movieGrid"></div>
 </div>
 
-<!-- INSERIMENTO / MODIFICA -->
 <div id="section-add" class="view-section">
     <div class="tech-panel">
+
+        <div class="form-group" style="border-bottom: 1px solid var(--accent-vector); padding-bottom: 15px;">
+            <label style="color: var(--accent-green);">Tipologia di Archiviazione</label>
+            <select id="itemType" onchange="toggleFormFields()">
+                <option value="movie">Flusso Singolo (Film Classico)</option>
+                <option value="collection">Raggruppatore (Collezione/Saga)</option>
+            </select>
+        </div>
+
         <div class="form-row">
             <div class="form-group">
-                <label>Identificativo (Titolo Film)</label>
+                <label>Identificativo (Titolo)</label>
                 <input type="text" id="movieTitle" placeholder="Titolo...">
             </div>
-            <div class="form-group">
+            <div class="form-group" id="blockYear">
                 <label>Anno di Uscita</label>
                 <input type="text" id="movieYear" placeholder="Es. 2010">
             </div>
         </div>
 
-        <div class="form-row">
-            <div class="form-group">
-                <label>Regista Creatore</label>
-                <input type="text" id="movieDirector" placeholder="Nome regista...">
+        <div id="movieOnlyFields">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Regista Creatore</label>
+                    <input type="text" id="movieDirector" placeholder="Nome regista...">
+                </div>
+                <div class="form-group">
+                    <label>Formato Disco</label>
+                    <select id="movieFormat">
+                        <option value="Blu-ray">Blu-ray</option>
+                        <option value="DVD">DVD</option>
+                    </select>
+                </div>
             </div>
-            <div class="form-group">
-                <label>Formato Disco</label>
-                <select id="movieFormat">
-                    <option value="Blu-ray">Blu-ray</option>
-                    <option value="DVD">DVD</option>
+
+            <div class="form-group" id="movieGroupSelectContainer">
+                <label style="color: var(--accent-green);">Associazione Raggruppatore (Opzionale)</label>
+                <select id="movieGroupSelect">
+                    <option value="">// Nessun Raggruppatore (Resta nel Mainframe Generale)</option>
                 </select>
             </div>
+
+            <div class="form-group">
+                <label>Programmi (Attori Principali)</label>
+                <input type="text" id="movieActors" placeholder="Attori separati da virgola...">
+            </div>
+        </div>
+        <div class="form-group">
+            <label id="lblSpecs">Specifiche Tecniche / Nerd Info</label>
+            <input type="text" id="movieSpecs" placeholder="Informazioni o Descrizione Raggruppatore...">
         </div>
 
-        <div class="form-group">
-            <label>Programmi (Attori Principali)</label>
-            <input type="text" id="movieActors" placeholder="Attori separati da virgola...">
-        </div>
+        <div id="movieOnlyFieldsBottom">
+            <div class="form-group">
+                <label>Classificazione Matrice (Generi)</label>
+                <div class="genre-selector-grid" id="genreSelectorGrid"></div>
+            </div>
 
-        <div class="form-group">
-            <label>Specifiche Tecniche / Nerd Info</label>
-            <input type="text" id="movieSpecs" placeholder="Es. 4K HDR, Aspect Ratio IMAX, Dolby Atmos, Extended Cut...">
-        </div>
+            <div class="form-group">
+                <label>Sinossi / Trama del Flusso</label>
+                <textarea id="moviePlot" rows="5" placeholder="Inserisci i dati della trama qui..."></textarea>
+            </div>
 
-        <div class="form-group">
-            <label>Classificazione Matrice (Generi)</label>
-            <div class="genre-selector-grid" id="genreSelectorGrid"></div>
-        </div>
-
-        <div class="form-group">
-            <label>Sinossi / Trama del Flusso</label>
-            <textarea id="moviePlot" rows="5" placeholder="Inserisci i dati della trama qui..."></textarea>
-        </div>
-
-        <div class="form-group">
-            <label>Coordinate Scaffale (Note Interne)</label>
-            <input type="text" id="movieNotes" placeholder="Es. Scaffale A, Posizione 3">
+            <div class="form-group">
+                <label>Coordinate Scaffale (Note Interne)</label>
+                <input type="text" id="movieNotes" placeholder="Es. Scaffale A, Posizione 3">
+            </div>
         </div>
 
         <div class="form-group">
             <label>Acquisizione Ottica HD (Risoluzione: 672x960)</label>
             <input type="file" id="movieCover" accept="image/*" onchange="initImageCrop(this)">
-
             <div class="cropper-container" id="cropperUI">
                 <canvas id="previewCanvas"></canvas>
                 <div class="cropper-hint">TRASCINA PER RIPOSIZIONARE - ROTELLINA MOUSE PER ZOOM</div>
@@ -447,26 +483,52 @@
     </div>
 </div>
 
-<!-- PAGINA DETTAGLIO -->
 <div id="section-detail" class="view-section">
-    <button class="btn-action btn-cancel" style="margin-bottom: 20px;" onclick="switchView('catalog')">← Ritorna all'Archivio</button>
+    <button class="btn-action btn-cancel" style="margin-bottom: 20px;" onclick="goBackFromDetail()">← Ritorna Indietro</button>
     <div class="tech-panel" id="detailContent" style="padding: 0; overflow: hidden;">
-        <!-- Renderizzato via JS -->
     </div>
 </div>
 
-<div class="backup-zone" id="backupZone">
-    <button class="btn-secondary" onclick="exportDatabase()">Esporta Disco Backup</button>
-    <button class="btn-secondary" onclick="document.getElementById('importFile').click()">Importa Disco Backup</button>
-    <input type="file" id="importFile" style="display:none" onchange="importDatabase(this)">
+<div id="section-collection-view" class="view-section">
+    <button class="btn-action btn-cancel" style="margin-bottom: 20px;" onclick="switchView('catalog')">← Ritorna all'Archivio</button>
+    <div class="tech-panel" style="padding: 0; overflow: hidden; margin-bottom: 20px;" id="collectionHeaderContent">
+    </div>
+
+    <button class="btn-action" style="margin-bottom: 25px; border-color: var(--accent-green); color: var(--accent-green);" onclick="openManageCollection()">Gestisci Nodi (Aggiungi/Rimuovi Film)</button>
+
+    <div class="movie-grid" id="collectionMoviesGrid"></div>
 </div>
 
+<div id="section-manage-collection" class="view-section">
+    <div class="tech-panel">
+        <h2 style="color:var(--accent-green); font-size:1.2rem; text-transform:uppercase; margin-bottom:15px; letter-spacing:1px;">Gestione Flussi del Raggruppatore</h2>
+
+        <div class="form-group">
+            <label>Ricerca Rapida per Nome</label>
+            <input type="text" id="groupMovieSearch" placeholder="Digita il nome del film da aggiungere/rimuovere..." oninput="renderGroupMoviesManagement()">
+        </div>
+
+        <div id="manageCollectionList" style="display:flex; flex-direction:column; gap:5px; margin-bottom:20px; max-height: 50vh; overflow-y:auto; padding-right:10px;">
+        </div>
+
+        <button class="btn-action" id="saveCollectionBtn" style="border-color:var(--accent-green); color:var(--accent-green);" onclick="saveCollectionMembers()">Salva Configurazione Raggruppatore</button>
+        <button class="btn-action btn-cancel" onclick="switchView('collection-view')">Annulla Operazione</button>
+    </div>
+</div>
+
+
 <script>
-    // --- MOTORE DATI (Connesso al Core Firebase) ---
-    window.moviesDB = []; // L'Array Globale che specchia i dati del Cloud
+    // --- MOTORE DATI (Unificato: Film e Raggruppatori nello stesso DB) ---
+    window.moviesDB = [];
     let currentBase64Cover = "";
     let editingId = null;
     let editingTimestampAdded = null;
+
+    let currentCollectionId = null;
+    let lastViewForDetail = 'catalog';
+
+    // Array temporaneo usato durante la gestione (checkbox) della collezione
+    let tempGroupMembers = [];
 
     // Ricalcolo del core generi
     const GENRES_MAP = {
@@ -488,17 +550,10 @@
     };
 
     // --- SISTEMA CROPPER IMMAGINE HD ---
-    let rawImage = null;
-    let cropX = 0, cropY = 0;
-    let isDragging = false, startDragX = 0, startDragY = 0;
-    let scaledW = 0, scaledH = 0;
-    let currentScale = 1, minScale = 1;
-    const previewCanvas = document.getElementById('previewCanvas');
-    const pCtx = previewCanvas.getContext('2d');
-
-    const CANVAS_WIDTH = 672;
-    const CANVAS_HEIGHT = 960;
-    previewCanvas.width = CANVAS_WIDTH; previewCanvas.height = CANVAS_HEIGHT;
+    let rawImage = null; let cropX = 0, cropY = 0; let isDragging = false, startDragX = 0, startDragY = 0;
+    let scaledW = 0, scaledH = 0; let currentScale = 1, minScale = 1;
+    const previewCanvas = document.getElementById('previewCanvas'); const pCtx = previewCanvas.getContext('2d');
+    const CANVAS_WIDTH = 672; const CANVAS_HEIGHT = 960; previewCanvas.width = CANVAS_WIDTH; previewCanvas.height = CANVAS_HEIGHT;
 
     function initImageCrop(input) {
         const file = input.files[0]; if (!file) return;
@@ -506,69 +561,42 @@
         reader.onload = function(e) {
             rawImage = new Image();
             rawImage.onload = function() {
-                document.getElementById('cropperUI').style.display = 'block';
-                cropX = 0; cropY = 0;
-                minScale = Math.max(CANVAS_WIDTH / rawImage.width, CANVAS_HEIGHT / rawImage.height);
-                currentScale = minScale;
-                scaledW = rawImage.width * currentScale;
-                scaledH = rawImage.height * currentScale;
-                cropX = (CANVAS_WIDTH - scaledW) / 2;
-                cropY = (CANVAS_HEIGHT - scaledH) / 2;
-                renderCrop();
+                document.getElementById('cropperUI').style.display = 'block'; cropX = 0; cropY = 0;
+                minScale = Math.max(CANVAS_WIDTH / rawImage.width, CANVAS_HEIGHT / rawImage.height); currentScale = minScale;
+                scaledW = rawImage.width * currentScale; scaledH = rawImage.height * currentScale;
+                cropX = (CANVAS_WIDTH - scaledW) / 2; cropY = (CANVAS_HEIGHT - scaledH) / 2; renderCrop();
             };
             rawImage.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
+        }; reader.readAsDataURL(file);
     }
 
     function renderCrop() {
         if(!rawImage) return;
         pCtx.clearRect(0,0, CANVAS_WIDTH, CANVAS_HEIGHT);
-        const minX = CANVAS_WIDTH - scaledW;
-        const minY = CANVAS_HEIGHT - scaledH;
-        cropX = Math.min(0, Math.max(minX, cropX));
-        cropY = Math.min(0, Math.max(minY, cropY));
+        cropX = Math.min(0, Math.max(CANVAS_WIDTH - scaledW, cropX)); cropY = Math.min(0, Math.max(CANVAS_HEIGHT - scaledH, cropY));
         pCtx.drawImage(rawImage, cropX, cropY, scaledW, scaledH);
         currentBase64Cover = previewCanvas.toDataURL('image/jpeg', 0.8);
     }
 
     function startDrag(e) { if(!rawImage) return; isDragging = true; startDragX = e.clientX || e.touches[0].clientX; startDragY = e.clientY || e.touches[0].clientY; }
-    function doDrag(e) {
-        if(!isDragging) return; e.preventDefault();
-        const currentX = e.clientX || e.touches[0].clientX; const currentY = e.clientY || e.touches[0].clientY;
-        cropX += (currentX - startDragX); cropY += (currentY - startDragY);
-        startDragX = currentX; startDragY = currentY; renderCrop();
-    }
+    function doDrag(e) { if(!isDragging) return; e.preventDefault(); const currentX = e.clientX || e.touches[0].clientX; const currentY = e.clientY || e.touches[0].clientY; cropX += (currentX - startDragX); cropY += (currentY - startDragY); startDragX = currentX; startDragY = currentY; renderCrop(); }
     function stopDrag() { isDragging = false; }
-
-    function doZoom(e) {
-        if(!rawImage) return;
-        e.preventDefault();
-        const zoomSpeed = 0.05;
-        const zoomAmount = e.deltaY < 0 ? zoomSpeed : -zoomSpeed;
-        const oldW = scaledW;
-        const oldH = scaledH;
-        currentScale += zoomAmount;
-        currentScale = Math.max(minScale, currentScale);
-        scaledW = rawImage.width * currentScale;
-        scaledH = rawImage.height * currentScale;
-        cropX -= (scaledW - oldW) / 2;
-        cropY -= (scaledH - oldH) / 2;
-        renderCrop();
-    }
+    function doZoom(e) { if(!rawImage) return; e.preventDefault(); const zoomSpeed = 0.05; const zoomAmount = e.deltaY < 0 ? zoomSpeed : -zoomSpeed; const oldW = scaledW; const oldH = scaledH; currentScale += zoomAmount; currentScale = Math.max(minScale, currentScale); scaledW = rawImage.width * currentScale; scaledH = rawImage.height * currentScale; cropX -= (scaledW - oldW) / 2; cropY -= (scaledH - oldH) / 2; renderCrop(); }
 
     previewCanvas.addEventListener('mousedown', startDrag); window.addEventListener('mousemove', doDrag); window.addEventListener('mouseup', stopDrag);
     previewCanvas.addEventListener('touchstart', startDrag); window.addEventListener('touchmove', doDrag, {passive: false}); window.addEventListener('touchend', stopDrag);
     previewCanvas.addEventListener('wheel', doZoom, {passive: false});
 
-    // --- MOTORE GRAFICO BACKGROUND ---
+    // --- MOTORE GRAFICO BACKGROUND (Aggiornato per transizioni morbide fuori schermo) ---
     function initGridAnimation() {
         const canvas = document.getElementById('bg-canvas'); const ctx = canvas.getContext('2d'); let width, height; const GRID_SIZE = 35;
-        function resize() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; }
-        window.addEventListener('resize', resize); resize();
+        function resize() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; } window.addEventListener('resize', resize); resize();
         class Cycle {
-            constructor(colorHex) { this.color = colorHex; this.reset(window.scrollY); }
+            constructor(colorHex) { this.baseColor = colorHex; this.color = colorHex; this.reset(window.scrollY); }
             reset(scrollY = window.scrollY) {
+                // Generazione casuale (8%) per la Lightcycle Verde
+                this.color = (Math.random() < 0.08) ? '#00ff66' : this.baseColor;
+
                 const w = window.innerWidth; const h = window.innerHeight; this.x = Math.floor(Math.random() * (w / GRID_SIZE)) * GRID_SIZE;
                 const startGridY = Math.floor(scrollY / GRID_SIZE) - 2; const visibleGridsY = Math.ceil(h / GRID_SIZE) + 4;
                 this.y = (startGridY + Math.floor(Math.random() * visibleGridsY)) * GRID_SIZE;
@@ -578,34 +606,24 @@
             update(scrollY = window.scrollY) {
                 const w = window.innerWidth; const h = window.innerHeight; const maxDocHeight = Math.max(document.body.scrollHeight, h);
                 if (this.x % GRID_SIZE === 0 && this.y % GRID_SIZE === 0) { if (Math.random() < 0.25) { if (this.dx !== 0) { this.dx = 0; this.dy = Math.random() < 0.5 ? 1 : -1; } else { this.dx = Math.random() < 0.5 ? 1 : -1; this.dy = 0; } } }
-                this.x += this.dx * 1; this.y += this.dy * 1;
-                if (this.x % 3 === 0 || this.y % 3 === 0) { this.history.push({x: this.x, y: this.y}); if (this.history.length > this.maxLength) this.history.shift(); }
-                const buffer = 150; if (this.x < 0 || this.x > w || this.y < scrollY - buffer || this.y > scrollY + h + buffer || this.y > maxDocHeight || this.y < 0) { this.reset(scrollY); }
+                this.x += this.dx * 1; this.y += this.dy * 1; if (this.x % 3 === 0 || this.y % 3 === 0) { this.history.push({x: this.x, y: this.y}); if (this.history.length > this.maxLength) this.history.shift(); }
+
+                // MARGINE OFF-SCREEN: La moto supera ampiamente il bordo, permettendo alla scia di seguirla e sparire in modo naturale
+                const margin = 500;
+                if (this.x < -margin || this.x > w + margin || this.y < scrollY - margin || this.y > scrollY + h + margin) { this.reset(scrollY); }
             }
             draw(ctx, scrollY = window.scrollY) {
                 if (this.history.length < 2) return;
-                for(let i=0; i<this.history.length-1; i++) {
-                    ctx.beginPath(); ctx.moveTo(this.history[i].x, this.history[i].y - scrollY); ctx.lineTo(this.history[i+1].x, this.history[i+1].y - scrollY);
-                    ctx.strokeStyle = this.color; ctx.globalAlpha = i / this.history.length; ctx.lineWidth = 2;
-                    if (i === this.history.length - 2) { ctx.shadowBlur = 10; ctx.shadowColor = this.color; } else { ctx.shadowBlur = 0; } ctx.stroke();
-                }
+                for(let i=0; i<this.history.length-1; i++) { ctx.beginPath(); ctx.moveTo(this.history[i].x, this.history[i].y - scrollY); ctx.lineTo(this.history[i+1].x, this.history[i+1].y - scrollY); ctx.strokeStyle = this.color; ctx.globalAlpha = i / this.history.length; ctx.lineWidth = 2; if (i === this.history.length - 2) { ctx.shadowBlur = 10; ctx.shadowColor = this.color; } else { ctx.shadowBlur = 0; } ctx.stroke(); }
                 ctx.globalAlpha = 1.0; ctx.shadowBlur = 8; ctx.shadowColor = this.color; const screenX = this.x; const screenY = this.y - scrollY;
-                ctx.fillStyle = "#ffffff"; ctx.beginPath();
-                if (this.dx !== 0) { ctx.roundRect(screenX - 9, screenY - 3, 18, 6, 3); } else { ctx.roundRect(screenX - 3, screenY - 9, 6, 18, 3); }
-                ctx.fill(); ctx.shadowBlur = 0;
+                ctx.fillStyle = "#ffffff"; ctx.beginPath(); if (this.dx !== 0) { ctx.roundRect(screenX - 9, screenY - 3, 18, 6, 3); } else { ctx.roundRect(screenX - 3, screenY - 9, 6, 18, 3); } ctx.fill(); ctx.shadowBlur = 0;
             }
         }
         const bikes = [new Cycle('#00e5ff'), new Cycle('#00e5ff'), new Cycle('#ff6d00'), new Cycle('#ff6d00'), new Cycle('#00e5ff')];
-        function animate() { const scrollY = window.scrollY; ctx.clearRect(0, 0, width, height); bikes.forEach(b => { b.update(scrollY); b.draw(ctx, scrollY); }); requestAnimationFrame(animate); }
-        animate();
+        function animate() { const scrollY = window.scrollY; ctx.clearRect(0, 0, width, height); bikes.forEach(b => { b.update(scrollY); b.draw(ctx, scrollY); }); requestAnimationFrame(animate); } animate();
     }
 
-    // --- INIZIALIZZAZIONE DI SISTEMA UI ---
-    window.onload = function initApp() {
-        buildGenreSelectors();
-        initGridAnimation();
-        // I dati ora vengono scaricati dal modulo Firebase al completamento dell'Auth
-    };
+    window.onload = function initApp() { buildGenreSelectors(); initGridAnimation(); };
 
     function buildGenreSelectors() {
         const grid = document.getElementById('genreSelectorGrid'); const filterDropdown = document.getElementById('filterGenre'); grid.innerHTML = '';
@@ -616,78 +634,164 @@
         });
     }
 
+    // --- AGGIORNAMENTO DINAMICO SELETTORE RAGGRUPPATORI ---
+    function updateGroupSelectOptions() {
+        const select = document.getElementById('movieGroupSelect');
+        if(!select) return;
+        select.innerHTML = '<option value="">// Nessun Raggruppatore (Resta nel Mainframe Generale)</option>';
+
+        // Estrae solo i raggruppatori dal DB unificato
+        const collections = window.moviesDB.filter(m => m.isCollection === true);
+        collections.forEach(coll => {
+            const opt = document.createElement('option');
+            opt.value = coll.id;
+            opt.textContent = coll.title;
+            select.appendChild(opt);
+        });
+    }
+
+    // --- LOGICA GESTIONE VISTE E SWITCH INTERFACCIA ---
     window.switchView = function(viewName) {
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
-        document.getElementById(`section-${viewName}`).classList.add('active');
+
+        const targetView = document.getElementById(`section-${viewName}`);
+        if(targetView) targetView.classList.add('active');
 
         const tab = document.getElementById(`tab-${viewName}`);
         if(tab) tab.classList.add('active');
 
         const nav = document.getElementById('mainNav');
-        const backup = document.getElementById('backupZone');
-        if(viewName === 'detail') { nav.style.display = 'none'; backup.style.display = 'none'; }
-        else { nav.style.display = 'table'; backup.style.display = 'flex'; }
+        if(viewName === 'catalog' || viewName === 'add') {
+            nav.style.display = 'table';
+        } else {
+            nav.style.display = 'none'; // Nasconde la barra superiore nelle view di dettaglio
+        }
+
+        if(viewName === 'add') {
+            updateGroupSelectOptions();
+        }
+
         window.scrollTo(0, 0);
     }
 
+    window.goBackFromDetail = function() {
+        if(lastViewForDetail === 'collection') switchView('collection-view');
+        else switchView('catalog');
+    }
+
+    // --- FORM: LOGICA DINAMICA PER I RAGGRUPPATORI ---
+    window.toggleFormFields = function() {
+        const type = document.getElementById('itemType').value;
+        const movieFieldsTop = document.getElementById('blockYear');
+        const movieFieldsMid = document.getElementById('movieOnlyFields');
+        const movieGroupSelectContainer = document.getElementById('movieGroupSelectContainer');
+        const movieFieldsBot = document.getElementById('movieOnlyFieldsBottom');
+        const lblSpecs = document.getElementById('lblSpecs');
+        const specsInput = document.getElementById('movieSpecs');
+
+        if (type === 'collection') {
+            movieFieldsTop.style.display = 'none';
+            movieFieldsMid.style.display = 'none';
+            movieGroupSelectContainer.style.display = 'none';
+            movieFieldsBot.style.display = 'none';
+            lblSpecs.innerText = "Descrizione Raggruppatore";
+            lblSpecs.style.color = "var(--accent-green)";
+            specsInput.placeholder = "Breve descrizione del contenuto del raggruppatore...";
+        } else {
+            movieFieldsTop.style.display = 'block';
+            movieFieldsMid.style.display = 'block';
+            movieGroupSelectContainer.style.display = 'block';
+            movieFieldsBot.style.display = 'block';
+            lblSpecs.innerText = "Specifiche Tecniche / Nerd Info";
+            lblSpecs.style.color = "var(--accent-cyan)";
+            specsInput.placeholder = "Es. 4K HDR, Aspect Ratio IMAX...";
+        }
+    }
+
     function resetForm() {
-        editingId = null; editingTimestampAdded = null; rawImage = null; document.getElementById('cropperUI').style.display = 'none'; pCtx.clearRect(0,0,CANVAS_WIDTH,CANVAS_HEIGHT);
+        editingId = null; editingTimestampAdded = null; rawImage = null;
+        document.getElementById('cropperUI').style.display = 'none'; pCtx.clearRect(0,0,CANVAS_WIDTH,CANVAS_HEIGHT);
+
+        document.getElementById('itemType').value = 'movie'; toggleFormFields();
+
         ['movieTitle', 'movieYear', 'movieDirector', 'movieActors', 'movieSpecs', 'moviePlot', 'movieNotes', 'movieCover'].forEach(id => document.getElementById(id).value = '');
-        document.getElementById('movieFormat').value = 'Blu-ray'; document.querySelectorAll('input[name="genres"]:checked').forEach(cb => cb.checked = false); currentBase64Cover = "";
+        document.getElementById('movieFormat').value = 'Blu-ray';
+        document.getElementById('movieGroupSelect').value = '';
+
+        document.querySelectorAll('input[name="genres"]:checked').forEach(cb => cb.checked = false); currentBase64Cover = "";
+
         const submitBtn = document.getElementById('submitBtn');
-        submitBtn.innerText = "Sincronizza nel Core"; submitBtn.style.borderColor = "var(--accent-orange)"; submitBtn.style.color = "var(--accent-orange)"; document.getElementById('cancelBtn').style.display = 'none';
-        submitBtn.disabled = false;
+        submitBtn.innerText = "Sincronizza nel Core"; submitBtn.style.borderColor = "var(--accent-orange)"; submitBtn.style.color = "var(--accent-orange)";
+        document.getElementById('cancelBtn').style.display = 'none'; submitBtn.disabled = false;
     }
 
     window.cancelEdit = function() { resetForm(); switchView('catalog'); }
 
+    // --- SALVATAGGIO CLOUD ---
     window.saveMovie = async function() {
-        const titleInput = document.getElementById('movieTitle'); const formatInput = document.getElementById('movieFormat');
-        const checkedGenres = Array.from(document.querySelectorAll('input[name="genres"]:checked')).map(cb => cb.value);
-        if (!titleInput.value.trim()) { alert('ERRORE: Identificativo del titolo obbligatorio.'); return; }
+        const titleInput = document.getElementById('movieTitle').value.trim();
+        const type = document.getElementById('itemType').value;
+        const isCollection = (type === 'collection');
+
+        if (!titleInput) { alert('ERRORE: Identificativo del titolo obbligatorio.'); return; }
 
         const now = Date.now();
-        const movieData = {
-            title: titleInput.value.trim(), format: formatInput.value, genres: checkedGenres,
-            year: document.getElementById('movieYear').value.trim() || 'N/A',
-            director: document.getElementById('movieDirector').value.trim() || 'Sconosciuto',
-            actors: document.getElementById('movieActors').value.trim() || 'N/A',
+        let movieData = {
+            title: titleInput,
+            isCollection: isCollection,
             specs: document.getElementById('movieSpecs').value.trim() || 'N/A',
-            plot: document.getElementById('moviePlot').value.trim() || 'Nessun dato di trama registrato nel Mainframe.',
-            notes: document.getElementById('movieNotes').value.trim() || 'Nessuna coordinata interna',
             cover: currentBase64Cover || null,
             timestampAdded: editingId !== null ? (editingTimestampAdded || now) : now,
             timestampModified: now
         };
 
-        const btn = document.getElementById('submitBtn');
-        btn.innerText = "Sincronizzazione Uplink in corso...";
-        btn.disabled = true;
-
-        // Passiamo i dati al ponte Firebase Globale
-        if(window.saveToFirebase) {
-            await window.saveToFirebase(movieData, editingId);
+        if (isCollection) {
+            movieData.format = 'Collection';
+            // Svuota i campi non pertinenti per pulizia nel database
+            movieData.genres = []; movieData.year = ''; movieData.director = ''; movieData.actors = ''; movieData.plot = ''; movieData.notes = ''; movieData.groupId = '';
         } else {
-            console.error("Modulo Firebase non allineato.");
+            movieData.format = document.getElementById('movieFormat').value;
+            movieData.groupId = document.getElementById('movieGroupSelect').value; // Registrazione del gruppo di appartenenza
+            movieData.genres = Array.from(document.querySelectorAll('input[name="genres"]:checked')).map(cb => cb.value);
+            movieData.year = document.getElementById('movieYear').value.trim() || 'N/A';
+            movieData.director = document.getElementById('movieDirector').value.trim() || 'Sconosciuto';
+            movieData.actors = document.getElementById('movieActors').value.trim() || 'N/A';
+            movieData.plot = document.getElementById('moviePlot').value.trim() || 'Nessun dato di trama registrato nel Mainframe.';
+            movieData.notes = document.getElementById('movieNotes').value.trim() || 'Nessuna coordinata interna';
         }
 
-        resetForm();
-        switchView('catalog');
+        const btn = document.getElementById('submitBtn'); btn.innerText = "Sincronizzazione Uplink in corso..."; btn.disabled = true;
+
+        if(window.saveToFirebase) await window.saveToFirebase(movieData, editingId);
+        else console.error("Modulo Firebase non allineato.");
+
+        resetForm(); switchView('catalog');
     }
 
+    // --- MODIFICA ELEMENTI (Film e Raggruppatori) ---
     window.editMovie = function(id, e) {
         if(e) e.stopPropagation();
+        const movie = window.moviesDB.find(m => m.id === id); if(!movie) return;
 
-        const movie = window.moviesDB.find(m => m.id === id);
-        if(!movie) return;
+        updateGroupSelectOptions(); // Carica le opzioni prima di selezionarla
 
-        document.getElementById('movieTitle').value = movie.title; document.getElementById('movieFormat').value = movie.format;
-        document.getElementById('movieYear').value = movie.year || ''; document.getElementById('movieDirector').value = movie.director || '';
-        document.getElementById('movieActors').value = movie.actors || ''; document.getElementById('movieSpecs').value = movie.specs || '';
-        document.getElementById('moviePlot').value = movie.plot || ''; document.getElementById('movieNotes').value = movie.notes || '';
+        document.getElementById('itemType').value = movie.isCollection ? 'collection' : 'movie';
+        toggleFormFields();
 
-        document.querySelectorAll('input[name="genres"]').forEach(cb => { cb.checked = movie.genres.includes(cb.value); });
+        document.getElementById('movieTitle').value = movie.title;
+        document.getElementById('movieSpecs').value = movie.specs || '';
+
+        if (!movie.isCollection) {
+            document.getElementById('movieFormat').value = movie.format;
+            document.getElementById('movieGroupSelect').value = movie.groupId || '';
+            document.getElementById('movieYear').value = movie.year || '';
+            document.getElementById('movieDirector').value = movie.director || '';
+            document.getElementById('movieActors').value = movie.actors || '';
+            document.getElementById('moviePlot').value = movie.plot || '';
+            document.getElementById('movieNotes').value = movie.notes || '';
+            document.querySelectorAll('input[name="genres"]').forEach(cb => { cb.checked = (movie.genres || []).includes(cb.value); });
+        }
 
         currentBase64Cover = movie.cover || "";
         if (currentBase64Cover) {
@@ -695,32 +799,229 @@
                 rawImage = img; document.getElementById('cropperUI').style.display = 'block'; cropX = 0; cropY = 0;
                 minScale = Math.max(CANVAS_WIDTH / rawImage.width, CANVAS_HEIGHT / rawImage.height); currentScale = minScale;
                 scaledW = rawImage.width * currentScale; scaledH = rawImage.height * currentScale;
-                cropX = (CANVAS_WIDTH - scaledW) / 2; cropY = (CANVAS_HEIGHT - scaledH) / 2;
-                renderCrop();
+                cropX = (CANVAS_WIDTH - scaledW) / 2; cropY = (CANVAS_HEIGHT - scaledH) / 2; renderCrop();
             }; img.src = currentBase64Cover;
         } else { document.getElementById('cropperUI').style.display = 'none'; }
 
-        editingId = movie.id;
-        editingTimestampAdded = movie.timestampAdded || Date.now();
+        editingId = movie.id; editingTimestampAdded = movie.timestampAdded || Date.now();
         const submitBtn = document.getElementById('submitBtn'); submitBtn.innerText = "Sovrascrivi Dati nel Core"; submitBtn.style.borderColor = "var(--accent-cyan)"; submitBtn.style.color = "var(--accent-cyan)"; document.getElementById('cancelBtn').style.display = 'block';
         switchView('add');
     }
 
     window.deleteMovie = async function(id, e) {
         if(e) e.stopPropagation();
-        if(confirm("ELIMINAZIONE DEFINITIVA: Procedere con la rimozione dei cluster dati dal Core Remoto?")) {
-            if(window.deleteFromFirebase) {
-                await window.deleteFromFirebase(id);
+
+        const isCollection = window.moviesDB.find(m => m.id === id)?.isCollection;
+        const alertMsg = isCollection
+            ? "ELIMINAZIONE RAGGRUPPATORE: I film all'interno non verranno cancellati, ma torneranno visibili come singoli e liberi nel Mainframe. Procedere?"
+            : "ELIMINAZIONE DEFINITIVA: Procedere con la rimozione del flusso dati dal Core Remoto?";
+
+        if(confirm(alertMsg)) {
+            // Se stiamo eliminando un raggruppatore, rimuoviamo l'associazione da tutti i film che lo contenevano
+            if (isCollection) {
+                const linkedMovies = window.moviesDB.filter(m => m.groupId === id);
+                for(let m of linkedMovies) {
+                    m.groupId = "";
+                    if(window.saveToFirebase) await window.saveToFirebase(m, m.id, false); // false = evita lag di ricarica
+                }
             }
+            if(window.deleteFromFirebase) await window.deleteFromFirebase(id);
         }
     }
 
-    window.showMovieDetail = function(id) {
-        const m = window.moviesDB.find(movie => movie.id === id);
-        if(!m) return;
+    // --- COSTRUTTORE GRAFICO PER SCHEDE FILM E RAGGRUPPATORI ---
+    function createCardElement(movie, context = 'catalog', delayIndex = 0) {
+        const card = document.createElement('div');
+        let cardClass = movie.isCollection ? "collection" : (movie.format ? movie.format.toLowerCase() : 'blu-ray');
+        card.className = `movie-card ${cardClass}`;
+
+        if (context === 'collection') {
+            card.classList.add('stagger-card');
+            card.style.animationDelay = `${delayIndex * 0.1}s`;
+        }
+
+        let onClickAction = movie.isCollection ? `showCollectionDetail('${movie.id}')` : `showMovieDetail('${movie.id}', '${context}')`;
+        card.setAttribute('onclick', onClickAction);
+
+        let coverHTML = `<div class="cover-display">[ No Matrix Data ]</div>`;
+        if(movie.cover) coverHTML = `<img src="${movie.cover}" class="cover-display" alt="Cover">`;
+
+        let genresHTML = '<div class="genres-container">';
+        if (!movie.isCollection && movie.genres) {
+            movie.genres.forEach(g => { genresHTML += `<span class="genre-tag" style="color: ${GENRES_MAP[g] || 'var(--text-neon)'};">${g}</span> `; });
+        }
+        genresHTML += '</div>';
+
+        let meta = movie.isCollection ? `<span style="color: var(--accent-green); letter-spacing:1px; font-weight:bold;">[ RAGGRUPPATORE ]</span>` : `${movie.year || ''} | ${movie.director || ''}`;
+
+        card.innerHTML = `
+            <div class="card-actions">
+                <button class="icon-btn edit-btn" onclick="editMovie('${movie.id}', event)">✎</button>
+                <button class="icon-btn delete-btn" onclick="deleteMovie('${movie.id}', event)">&times;</button>
+            </div>
+            ${coverHTML}
+            <div class="card-info">
+                <div>
+                    <div class="movie-title">${movie.title}</div>
+                    <div class="movie-meta-short">${meta}</div>
+                    ${genresHTML}
+                </div>
+            </div>
+        `;
+        return card;
+    }
+
+    window.renderMovies = function() {
+        const grid = document.getElementById('movieGrid'); grid.innerHTML = '';
+        const qTitle = document.getElementById('searchBar').value.toLowerCase();
+        const qDir = document.getElementById('filterDirector').value.toLowerCase();
+        const qAct = document.getElementById('filterActors').value.toLowerCase();
+        const qYear = document.getElementById('filterYear').value.toLowerCase();
+        const qSpecs = document.getElementById('filterSpecs').value.toLowerCase();
+        const fFormat = document.getElementById('filterFormat').value;
+        const fGenre = document.getElementById('filterGenre').value;
+        const sortCriteria = document.getElementById('sortCriteria').value;
+        const sortDirection = document.getElementById('sortDirection').value;
+
+        let filteredMovies = window.moviesDB.filter(movie => {
+            const matchTitle = movie.title.toLowerCase().includes(qTitle);
+            const matchDir = (movie.director || "").toLowerCase().includes(qDir);
+            const matchAct = (movie.actors || "").toLowerCase().includes(qAct);
+            const matchYear = (movie.year || "").toLowerCase().includes(qYear);
+            const matchSpecs = (movie.specs || "").toLowerCase().includes(qSpecs);
+            const matchFormat = (fFormat === 'ALL' || (movie.isCollection && fFormat === 'Collection') || (!movie.isCollection && movie.format === fFormat));
+            const matchGenre = (fGenre === 'ALL' || (movie.genres && movie.genres.includes(fGenre)));
+            return matchTitle && matchDir && matchAct && matchYear && matchSpecs && matchFormat && matchGenre;
+        });
+
+        filteredMovies.sort((a, b) => {
+            let valA, valB;
+            if (sortCriteria === 'alpha') { valA = a.title.toLowerCase(); valB = b.title.toLowerCase(); if (valA < valB) return sortDirection === 'asc' ? -1 : 1; if (valA > valB) return sortDirection === 'asc' ? 1 : -1; return 0; }
+            else if (sortCriteria === 'added') { valA = a.timestampAdded || 0; valB = b.timestampAdded || 0; return sortDirection === 'asc' ? valA - valB : valB - valA; }
+            else if (sortCriteria === 'modified') { valA = a.timestampModified || 0; valB = b.timestampModified || 0; return sortDirection === 'asc' ? valA - valB : valB - valA; }
+        });
+
+        filteredMovies.forEach(movie => { grid.appendChild(createCardElement(movie, 'catalog')); });
+    }
+
+    // --- VISUALE DETTAGLIO RAGGRUPPATORE (COLLEZIONE) ---
+    window.showCollectionDetail = function(id) {
+        const coll = window.moviesDB.find(m => m.id === id); if(!coll) return;
+        currentCollectionId = id;
+
+        let coverHTML = coll.cover ? `<img src="${coll.cover}" class="detail-cover" alt="Cover">` : `<div class="detail-cover" style="height:400px; background:#05080f; display:flex; align-items:center; justify-content:center; color:var(--text-dark);">[ NO VISUAL DATA ]</div>`;
+
+        const header = document.getElementById('collectionHeaderContent');
+        header.innerHTML = `
+            <div class="detail-header collection-header" style="margin-bottom:0;">
+                ${coverHTML}
+                <div class="detail-title-overlay">
+                    <h2 class="detail-title" style="color:var(--accent-green)">${coll.title}</h2>
+                    <p style="color:#fff; margin-top:8px; font-size:0.9rem;">${coll.specs || 'Nessuna descrizione'}</p>
+                </div>
+            </div>
+        `;
+
+        const grid = document.getElementById('collectionMoviesGrid'); grid.innerHTML = '';
+
+        // Estrai tutti i film che hanno questo raggruppatore registrato in groupId
+        let members = window.moviesDB.filter(m => m.groupId === id);
+
+        // Ordina alfabeticamente per fluidità visiva
+        members.sort((a,b) => a.title.toLowerCase().localeCompare(b.title.toLowerCase()));
+
+        members.forEach((m, index) => { grid.appendChild(createCardElement(m, 'collection', index)); });
+
+        switchView('collection-view');
+    }
+
+    // --- LOGICA GESTIONE CONTENUTI RAGGRUPPATORE (Aggiungi/Rimuovi con Ricerca) ---
+    window.openManageCollection = function() {
+        if(!currentCollectionId) return;
+
+        // Carica in memoria i film attualmente associati al gruppo
+        tempGroupMembers = window.moviesDB.filter(m => m.groupId === currentCollectionId).map(m => m.id);
+
+        document.getElementById('groupMovieSearch').value = '';
+        renderGroupMoviesManagement();
+        switchView('manage-collection');
+    }
+
+    window.toggleMovieTempStatus = function(movieId) {
+        const index = tempGroupMembers.indexOf(movieId);
+        if (index > -1) {
+            tempGroupMembers.splice(index, 1);
+        } else {
+            tempGroupMembers.push(movieId);
+        }
+        renderGroupMoviesManagement(); // Re-renderizza il pannello per aggiornare i tasti colorati
+    }
+
+    window.renderGroupMoviesManagement = function() {
+        const listDiv = document.getElementById('manageCollectionList');
+        listDiv.innerHTML = '';
+        const searchFilter = document.getElementById('groupMovieSearch').value.toLowerCase();
+
+        let allMovies = window.moviesDB.filter(m => !m.isCollection && m.title.toLowerCase().includes(searchFilter));
+        allMovies.sort((a,b) => a.title.toLowerCase().localeCompare(b.title.toLowerCase()));
+
+        if(allMovies.length === 0) {
+            listDiv.innerHTML = '<div style="color: var(--text-dark); text-align: center; padding: 15px;">Nessun flusso isolato corrispondente.</div>';
+            return;
+        }
+
+        allMovies.forEach(m => {
+            const isSelected = tempGroupMembers.includes(m.id);
+            const btnColor = isSelected ? 'var(--accent-orange)' : 'var(--accent-cyan)';
+            const btnText = isSelected ? 'RIMUOVI' : 'AGGIUNGI';
+
+            listDiv.innerHTML += `
+                <div style="display:flex; align-items:center; justify-content:space-between; background:var(--surface-card); padding:10px; border:1px solid var(--accent-vector); margin-bottom:5px;">
+                    <span style="color:#fff; font-size:0.95rem; display:flex; flex-direction:column;">
+                        <span style="font-weight:bold;">${m.title}</span>
+                        <span style="color:var(--text-dark); font-size:0.75rem;">${m.year || 'N/A'} - ${m.director || ''}</span>
+                    </span>
+                    <button class="btn-action" style="width:auto; padding:5px 15px; margin:0; font-size:0.75rem; border-color:${btnColor}; color:${btnColor};" onclick="toggleMovieTempStatus('${m.id}')">${btnText}</button>
+                </div>
+            `;
+        });
+    }
+
+    window.saveCollectionMembers = async function() {
+        const btn = document.getElementById('saveCollectionBtn'); btn.innerText = "Salvataggio nel Core..."; btn.disabled = true;
+
+        // Loop attraverso i film esistenti per aggiornare l'appartenenza a questo gruppo
+        for(let m of window.moviesDB) {
+            if (m.isCollection) continue;
+
+            let changed = false;
+            if (tempGroupMembers.includes(m.id) && m.groupId !== currentCollectionId) {
+                m.groupId = currentCollectionId; // Assegna al gruppo
+                changed = true;
+            } else if (!tempGroupMembers.includes(m.id) && m.groupId === currentCollectionId) {
+                m.groupId = ""; // Rimuove dal gruppo
+                changed = true;
+            }
+
+            if (changed && window.saveToFirebase) {
+                await window.saveToFirebase(m, m.id, false); // false = evita ricarica pagina in massa
+            }
+        }
+
+        // Forza il reload generale alla fine dell'operazione
+        if(window.loadFromFirebase) await window.loadFromFirebase();
+
+        btn.innerText = "Salva Configurazione Raggruppatore"; btn.disabled = false;
+        showCollectionDetail(currentCollectionId); // Torna alla visuale del gruppo
+    }
+
+    // --- VISUALE DETTAGLIO FILM SINGOLO ---
+    window.showMovieDetail = function(id, context = 'catalog') {
+        const m = window.moviesDB.find(movie => movie.id === id); if(!m) return;
+        lastViewForDetail = context;
 
         let coverHTML = m.cover ? `<img src="${m.cover}" class="detail-cover" alt="Cover">` : `<div class="detail-cover" style="height:480px; background:#05080f; display:flex; align-items:center; justify-content:center; color:var(--text-dark);">[ NO VISUAL DATA ]</div>`;
-        let genresHTML = m.genres.map(g => `<span class="genre-tag" style="color: ${GENRES_MAP[g] || '#fff'}; padding: 2px 6px; border: 1px solid ${GENRES_MAP[g]}; border-radius: 3px; margin-right: 5px;">${g}</span>`).join('');
+        let genresHTML = (m.genres || []).map(g => `<span class="genre-tag" style="color: ${GENRES_MAP[g] || '#fff'}; padding: 2px 6px; border: 1px solid ${GENRES_MAP[g]}; border-radius: 3px; margin-right: 5px;">${g}</span>`).join('');
 
         const content = document.getElementById('detailContent');
         content.innerHTML = `
@@ -767,80 +1068,7 @@
         switchView('detail');
     }
 
-    window.renderMovies = function() {
-        const grid = document.getElementById('movieGrid');
-        const qTitle = document.getElementById('searchBar').value.toLowerCase();
-        const qDir = document.getElementById('filterDirector').value.toLowerCase();
-        const qAct = document.getElementById('filterActors').value.toLowerCase();
-        const qYear = document.getElementById('filterYear').value.toLowerCase();
-        const qSpecs = document.getElementById('filterSpecs').value.toLowerCase();
-        const fFormat = document.getElementById('filterFormat').value;
-        const fGenre = document.getElementById('filterGenre').value;
-
-        const sortCriteria = document.getElementById('sortCriteria').value;
-        const sortDirection = document.getElementById('sortDirection').value;
-
-        grid.innerHTML = '';
-
-        // Filtraggio Nodi Array Globale
-        let filteredMovies = window.moviesDB.filter(movie => {
-            const matchTitle = movie.title.toLowerCase().includes(qTitle);
-            const matchDir = (movie.director || "").toLowerCase().includes(qDir);
-            const matchAct = (movie.actors || "").toLowerCase().includes(qAct);
-            const matchYear = (movie.year || "").toLowerCase().includes(qYear);
-            const matchSpecs = (movie.specs || "").toLowerCase().includes(qSpecs);
-            const matchFormat = (fFormat === 'ALL' || movie.format === fFormat);
-            const matchGenre = (fGenre === 'ALL' || movie.genres.includes(fGenre));
-            return matchTitle && matchDir && matchAct && matchYear && matchSpecs && matchFormat && matchGenre;
-        });
-
-        // Organizzatore Matrice
-        filteredMovies.sort((a, b) => {
-            let valA, valB;
-            if (sortCriteria === 'alpha') {
-                valA = a.title.toLowerCase(); valB = b.title.toLowerCase();
-                if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
-                if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
-                return 0;
-            } else if (sortCriteria === 'added') {
-                valA = a.timestampAdded || 0; valB = b.timestampAdded || 0;
-                return sortDirection === 'asc' ? valA - valB : valB - valA;
-            } else if (sortCriteria === 'modified') {
-                valA = a.timestampModified || 0; valB = b.timestampModified || 0;
-                return sortDirection === 'asc' ? valA - valB : valB - valA;
-            }
-        });
-
-        // Generazione Visiva (Nota: ID di Firestore sono stringhe, devono avere gli apici nei richiami onclick)
-        filteredMovies.forEach(movie => {
-            const card = document.createElement('div'); card.className = `movie-card ${movie.format.toLowerCase()}`;
-            card.setAttribute('onclick', `showMovieDetail('${movie.id}')`);
-
-            let coverHTML = `<div class="cover-display">[ No Matrix Data ]</div>`;
-            if(movie.cover) coverHTML = `<img src="${movie.cover}" class="cover-display" alt="Cover">`;
-
-            let genresHTML = '<div class="genres-container">';
-            movie.genres.forEach(g => { genresHTML += `<span class="genre-tag" style="color: ${GENRES_MAP[g] || 'var(--text-neon)'};">${g}</span> `; });
-            genresHTML += '</div>';
-
-            card.innerHTML = `
-                <div class="card-actions">
-                    <button class="icon-btn edit-btn" onclick="editMovie('${movie.id}', event)">✎</button>
-                    <button class="icon-btn delete-btn" onclick="deleteMovie('${movie.id}', event)">&times;</button>
-                </div>
-                ${coverHTML}
-                <div class="card-info">
-                    <div>
-                        <div class="movie-title">${movie.title}</div>
-                        <div class="movie-meta-short">${movie.year || ''} | ${movie.director || ''}</div>
-                        ${genresHTML}
-                    </div>
-                </div>
-            `;
-            grid.appendChild(card);
-        });
-    }
-
+    // --- FUNZIONI DI EXPORT / IMPORT ---
     window.exportDatabase = function() {
         if(window.moviesDB.length === 0) return alert("Database vuoto. Nessun cluster da esportare.");
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(window.moviesDB));
@@ -854,12 +1082,10 @@
             try {
                 const imported = JSON.parse(e.target.result);
                 if (Array.isArray(imported)) {
-                    if(confirm(`Attenzione: iniezione multipla nel Core Firebase. I cluster duplicati verranno ignorati o aggiunti come nuovi. Procedere?`)) {
+                    if(confirm(`Attenzione: iniezione multipla nel Core Firebase. Procedere?`)) {
                         for(let movie of imported) {
-                            delete movie.id; // Rimuovo il vecchio ID per lasciare che Firestore crei il nuovo
-                            if(window.saveToFirebase) {
-                                await window.saveToFirebase(movie, null, false);
-                            }
+                            delete movie.id;
+                            if(window.saveToFirebase) await window.saveToFirebase(movie, null, false);
                         }
                         if(window.loadFromFirebase) await window.loadFromFirebase();
                         alert("Iniezione Dati nel Core completata con successo.");
@@ -870,14 +1096,11 @@
     }
 </script>
 
-<!-- MODULO FIREBASE E AUTENTICAZIONE -->
 <script type="module">
-    // 1. Importa i moduli di Firebase
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
     import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-    // 2. I tuoi Dati Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyCkHylWkeYkv-8O_gF9Ge7yW1DSC2dfc0I",
       authDomain: "the-grid---core-archive.firebaseapp.com",
@@ -887,111 +1110,52 @@
       appId: "1:108411615934:web:934f582699fe60878ebcef"
     };
 
-    // 3. Inizializza l'applicazione Firebase
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    const app = initializeApp(firebaseConfig); const auth = getAuth(app); const db = getFirestore(app);
 
-    // --- ATTIVAZIONE PERSISTENZA OFFLINE (IndexedDB) ---
     enableIndexedDbPersistence(db).catch((err) => {
-        if (err.code == 'failed-precondition') {
-            console.log('Attenzione: La persistenza funziona solo se hai una singola scheda della Grid aperta nel browser.');
-        } else if (err.code == 'unimplemented') {
-            console.log('Il browser attuale non supporta il salvataggio offline.');
-        }
+        if (err.code == 'failed-precondition') console.log('La persistenza funziona solo su una singola scheda aperta.');
+        else if (err.code == 'unimplemented') console.log('Browser non supportato per la persistenza offline.');
     });
-
-    // 4. CREAZIONE DEL PONTE GLOBALE PER LA UI
-    // Esponiamo i comandi al Mainframe per interfacciarli con lo script standard
 
     window.loadFromFirebase = async () => {
         try {
             const querySnapshot = await getDocs(collection(db, "movies"));
             window.moviesDB = querySnapshot.docs.map(documento => {
-                let data = documento.data();
-                data.id = documento.id; // Assegna l'ID generato da Firestore
-                return data;
+                let data = documento.data(); data.id = documento.id; return data;
             });
             if(window.renderMovies) window.renderMovies();
-        } catch (e) {
-            console.error("Anomalia nel recupero del Core:", e);
-        }
+        } catch (e) { console.error("Anomalia nel recupero del Core:", e); }
     };
 
-    // Il parametro autoReload previene lag durante le importazioni massive
     window.saveToFirebase = async (movieData, id, autoReload = true) => {
         try {
-            if (id) {
-                // Aggiorna ciclo dati esistente
-                const movieRef = doc(db, "movies", id);
-                await updateDoc(movieRef, movieData);
-            } else {
-                // Nuovo ciclo dati
-                await addDoc(collection(db, "movies"), movieData);
-            }
+            if (id) await updateDoc(doc(db, "movies", id), movieData);
+            else await addDoc(collection(db, "movies"), movieData);
             if (autoReload) await window.loadFromFirebase();
-        } catch (e) {
-            console.error("Anomalia Sincronizzazione:", e);
-            alert("Errore critico di sincronizzazione col Core Remoto.");
-        }
+        } catch (e) { console.error("Anomalia Sincronizzazione:", e); alert("Errore critico di sincronizzazione col Core Remoto."); }
     };
 
     window.deleteFromFirebase = async (id) => {
-        try {
-            await deleteDoc(doc(db, "movies", id));
-            await window.loadFromFirebase();
-        } catch (e) {
-            console.error("Anomalia Eliminazione:", e);
-        }
+        try { await deleteDoc(doc(db, "movies", id)); await window.loadFromFirebase(); } catch (e) { console.error("Anomalia Eliminazione:", e); }
     };
 
-    // 5. Elementi dell'interfaccia
-    const loginScreen = document.getElementById('login-screen');
-    const loginBtn = document.getElementById('login-btn');
-    const emailInput = document.getElementById('login-email');
-    const passwordInput = document.getElementById('login-password');
+    const loginScreen = document.getElementById('login-screen'); const loginBtn = document.getElementById('login-btn');
+    const emailInput = document.getElementById('login-email'); const passwordInput = document.getElementById('login-password');
     const errorText = document.getElementById('login-error');
 
-    // 6. Funzione di Autenticazione
     loginBtn.addEventListener('click', () => {
-      const email = emailInput.value;
-      const password = passwordInput.value;
       errorText.textContent = "Verifica credenziali in corso...";
-
-      signInWithEmailAndPassword(auth, email, password)
-        .then((userCredential) => {
-          errorText.textContent = "";
-          emailInput.value = "";
-          passwordInput.value = "";
-        })
-        .catch((error) => {
-          errorText.textContent = "Accesso negato. Credenziali non valide.";
-          console.error("Errore di sistema:", error.message);
-        });
+      signInWithEmailAndPassword(auth, emailInput.value, passwordInput.value)
+        .then(() => { errorText.textContent = ""; emailInput.value = ""; passwordInput.value = ""; })
+        .catch((error) => { errorText.textContent = "Accesso negato. Credenziali non valide."; console.error(error.message); });
     });
 
-    // 7. Ascoltatore di Stato e Richiamo Iniziale
     onAuthStateChanged(auth, (user) => {
       if (user) {
-        // Utente verificato: Rimozione Barriera
-        loginScreen.style.opacity = '0';
-        setTimeout(() => {
-          loginScreen.style.display = 'none';
-        }, 500);
-
-        console.log("Accesso alla Grid autorizzato per:", user.email);
-
-        // Inizializza il Download dei Dati dal Core
+        loginScreen.style.opacity = '0'; setTimeout(() => { loginScreen.style.display = 'none'; }, 500);
         window.loadFromFirebase();
-
       } else {
-        // Barriera Attivata
-        loginScreen.style.display = 'flex';
-        loginScreen.style.opacity = '1';
-
-        // Svuota array in caso di logout forzato
-        window.moviesDB = [];
-        if(window.renderMovies) window.renderMovies();
+        loginScreen.style.display = 'flex'; loginScreen.style.opacity = '1'; window.moviesDB = []; if(window.renderMovies) window.renderMovies();
       }
     });
 </script>
