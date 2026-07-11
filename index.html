@@ -263,6 +263,29 @@
         /* Stile Raggruppatore - Linea Verde */
         .movie-card.collection { border-top: 4px solid var(--accent-green); }
 
+        /* Effetti Glow per i film nei raggruppatori */
+        @keyframes pulseGlow {
+            0% { opacity: 0.5; box-shadow: 0 0 5px var(--accent-green); }
+            100% { opacity: 1; box-shadow: 0 0 20px var(--accent-green); }
+        }
+        @keyframes pulseTextGlow {
+            0% { opacity: 0.7; text-shadow: 0 0 5px var(--accent-green); }
+            100% { opacity: 1; text-shadow: 0 0 15px var(--accent-green); }
+        }
+        .in-collection-marker {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 6px;
+            background-color: var(--accent-green);
+            animation: pulseGlow 1.5s infinite alternate;
+            z-index: 10;
+        }
+        .collection-text-pulse {
+            color: var(--accent-green);
+            animation: pulseTextGlow 1.5s infinite alternate;
+            font-weight: bold; margin-top: 15px; font-size: 0.9rem; text-transform: uppercase;
+            display: inline-block; padding: 5px 10px; border: 1px dashed var(--accent-green);
+            background: rgba(0, 255, 0, 0.05);
+        }
+
         /* Animazione a cascata per i film dentro i raggruppatori */
         .stagger-card {
             opacity: 0;
@@ -274,12 +297,25 @@
             100% { opacity: 1; transform: translateY(0); }
         }
 
+        /* Stili Modalità Organizer */
+        .organizer-item {
+            display: flex; justify-content: space-between; align-items: center;
+            background: var(--surface-card); padding: 10px; margin-bottom: 5px;
+            border: 1px solid var(--accent-vector);
+        }
+        .organizer-controls button {
+            background: transparent; border: 1px solid var(--accent-cyan);
+            color: var(--accent-cyan); cursor: pointer; padding: 5px 10px; margin-left: 5px;
+            transition: all 0.2s;
+        }
+        .organizer-controls button:hover:not(:disabled) { background: var(--accent-cyan); color: #000; }
+
         .cover-display {
             width: 100%; height: 260px; background: #05080f; background-image: linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px);
             background-size: 100% 10px; display: flex; align-items: center; justify-content: center;
             color: var(--text-dark); font-size: 0.7rem; text-transform: uppercase; object-fit: cover;
         }
-        .card-info { padding: 12px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; }
+        .card-info { padding: 12px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; position: relative; }
         .movie-title { font-weight: bold; font-size: 0.9rem; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; line-height: 1.3; color: #ffffff; }
         .movie-meta-short { font-size: 0.7rem; color: var(--text-dark); margin-bottom: 6px; }
         .genres-container { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
@@ -447,9 +483,11 @@
                 <input type="text" id="movieActors" placeholder="Attori separati da virgola...">
             </div>
         </div>
+
+        <!-- Modifica per permettere spazio a più righe nelle info -->
         <div class="form-group">
             <label id="lblSpecs">Specifiche Tecniche / Nerd Info</label>
-            <input type="text" id="movieSpecs" placeholder="Informazioni o Descrizione Raggruppatore...">
+            <textarea id="movieSpecs" rows="3" placeholder="Informazioni o Descrizione Raggruppatore..."></textarea>
         </div>
 
         <div id="movieOnlyFieldsBottom">
@@ -494,7 +532,10 @@
     <div class="tech-panel" style="padding: 0; overflow: hidden; margin-bottom: 20px;" id="collectionHeaderContent">
     </div>
 
-    <button class="btn-action" style="margin-bottom: 25px; border-color: var(--accent-green); color: var(--accent-green);" onclick="openManageCollection()">Gestisci Nodi (Aggiungi/Rimuovi Film)</button>
+    <div style="display:flex; gap:10px; margin-bottom: 25px;">
+        <button class="btn-action" style="margin-top:0; border-color: var(--accent-green); color: var(--accent-green);" onclick="openManageCollection()">Gestisci Nodi (Aggiungi/Rimuovi)</button>
+        <button class="btn-action" style="margin-top:0; border-color: var(--accent-orange); color: var(--accent-orange);" onclick="openOrganizer()">Modalità Organizer (Ordina Film)</button>
+    </div>
 
     <div class="movie-grid" id="collectionMoviesGrid"></div>
 </div>
@@ -516,6 +557,20 @@
     </div>
 </div>
 
+<!-- Aggiunta sezione per l'Organizer Raggruppatore -->
+<div id="section-collection-organizer" class="view-section">
+    <div class="tech-panel">
+        <h2 style="color:var(--accent-orange); font-size:1.2rem; text-transform:uppercase; margin-bottom:15px; letter-spacing:1px;">Organizer Raggruppatore</h2>
+        <p style="color:var(--text-dark); margin-bottom: 15px; font-size: 0.8rem;">Usa le frecce per modificare la posizione dei flussi all'interno del raccoglitore.</p>
+
+        <div id="organizerList" style="display:flex; flex-direction:column; margin-bottom:20px; max-height: 50vh; overflow-y:auto; padding-right:10px;">
+        </div>
+
+        <button class="btn-action" style="border-color:var(--accent-orange); color:var(--accent-orange);" onclick="saveCollectionOrder()">Salva Nuova Disposizione</button>
+        <button class="btn-action btn-cancel" onclick="switchView('collection-view')">Annulla Operazione</button>
+    </div>
+</div>
+
 
 <script>
     // --- MOTORE DATI (Unificato: Film e Raggruppatori nello stesso DB) ---
@@ -529,6 +584,8 @@
 
     // Array temporaneo usato durante la gestione (checkbox) della collezione
     let tempGroupMembers = [];
+    // Array temporaneo usato per l'ordinamento (Organizer)
+    let tempOrder = [];
 
     // Ricalcolo del core generi
     const GENRES_MAP = {
@@ -587,7 +644,7 @@
     previewCanvas.addEventListener('touchstart', startDrag); window.addEventListener('touchmove', doDrag, {passive: false}); window.addEventListener('touchend', stopDrag);
     previewCanvas.addEventListener('wheel', doZoom, {passive: false});
 
-    // --- MOTORE GRAFICO BACKGROUND (Aggiornato per transizioni morbide fuori schermo) ---
+    // --- MOTORE GRAFICO BACKGROUND ---
     function initGridAnimation() {
         const canvas = document.getElementById('bg-canvas'); const ctx = canvas.getContext('2d'); let width, height; const GRID_SIZE = 35;
         function resize() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; } window.addEventListener('resize', resize); resize();
@@ -854,6 +911,12 @@
 
         let meta = movie.isCollection ? `<span style="color: var(--accent-green); letter-spacing:1px; font-weight:bold;">[ RAGGRUPPATORE ]</span>` : `${movie.year || ''} | ${movie.director || ''}`;
 
+        // Aggiunta marker collezione pulsante
+        let collectionMarker = '';
+        if (!movie.isCollection && movie.groupId && context === 'catalog') {
+            collectionMarker = `<div class="in-collection-marker"></div>`;
+        }
+
         card.innerHTML = `
             <div class="card-actions">
                 <button class="icon-btn edit-btn" onclick="editMovie('${movie.id}', event)">✎</button>
@@ -867,6 +930,7 @@
                     ${genresHTML}
                 </div>
             </div>
+            ${collectionMarker}
         `;
         return card;
     }
@@ -927,15 +991,24 @@
         // Estrai tutti i film che hanno questo raggruppatore registrato in groupId
         let members = window.moviesDB.filter(m => m.groupId === id);
 
-        // Ordina alfabeticamente per fluidità visiva
-        members.sort((a,b) => a.title.toLowerCase().localeCompare(b.title.toLowerCase()));
+        // Ordinamento per Modalità Organizer o Fallback Alfabetico
+        members.sort((a, b) => {
+            let order = coll.customOrder || [];
+            let indexA = order.indexOf(a.id);
+            let indexB = order.indexOf(b.id);
+            if (indexA === -1) indexA = 99999;
+            if (indexB === -1) indexB = 99999;
+            if (indexA !== indexB) return indexA - indexB;
+            // Fallback alfabetico
+            return a.title.toLowerCase().localeCompare(b.title.toLowerCase());
+        });
 
         members.forEach((m, index) => { grid.appendChild(createCardElement(m, 'collection', index)); });
 
         switchView('collection-view');
     }
 
-    // --- LOGICA GESTIONE CONTENUTI RAGGRUPPATORE (Aggiungi/Rimuovi con Ricerca) ---
+    // --- LOGICA GESTIONE CONTENUTI RAGGRUPPATORE (Aggiungi/Rimuovi) ---
     window.openManageCollection = function() {
         if(!currentCollectionId) return;
 
@@ -954,7 +1027,7 @@
         } else {
             tempGroupMembers.push(movieId);
         }
-        renderGroupMoviesManagement(); // Re-renderizza il pannello per aggiornare i tasti colorati
+        renderGroupMoviesManagement();
     }
 
     window.renderGroupMoviesManagement = function() {
@@ -1015,6 +1088,68 @@
         showCollectionDetail(currentCollectionId); // Torna alla visuale del gruppo
     }
 
+    // --- LOGICA MODALITA' ORGANIZER ---
+    window.openOrganizer = function() {
+        if(!currentCollectionId) return;
+        const coll = window.moviesDB.find(c => c.id === currentCollectionId);
+        let members = window.moviesDB.filter(m => m.groupId === currentCollectionId);
+
+        // Ordiniamo con lo stesso algoritmo per mostrare l'ordine attuale
+        members.sort((a, b) => {
+            let order = coll.customOrder || [];
+            let indexA = order.indexOf(a.id);
+            let indexB = order.indexOf(b.id);
+            if (indexA === -1) indexA = 99999;
+            if (indexB === -1) indexB = 99999;
+            if (indexA !== indexB) return indexA - indexB;
+            return a.title.toLowerCase().localeCompare(b.title.toLowerCase());
+        });
+
+        tempOrder = members.map(m => m.id);
+        renderOrganizerList();
+        switchView('collection-organizer');
+    }
+
+    window.renderOrganizerList = function() {
+        const list = document.getElementById('organizerList');
+        list.innerHTML = '';
+        tempOrder.forEach((id, index) => {
+            const m = window.moviesDB.find(movie => movie.id === id);
+            if(!m) return;
+            list.innerHTML += `
+                <div class="organizer-item">
+                    <span style="color:#fff; font-size: 0.9rem;"><span style="color:var(--text-dark); margin-right:8px;">[${index + 1}]</span>${m.title}</span>
+                    <div class="organizer-controls">
+                        <button onclick="moveItem(${index}, -1)" ${index === 0 ? 'disabled style="opacity:0.2"' : ''}>▲</button>
+                        <button onclick="moveItem(${index}, 1)" ${index === tempOrder.length - 1 ? 'disabled style="opacity:0.2"' : ''}>▼</button>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    window.moveItem = function(index, direction) {
+        if (index + direction < 0 || index + direction >= tempOrder.length) return;
+        const temp = tempOrder[index];
+        tempOrder[index] = tempOrder[index + direction];
+        tempOrder[index + direction] = temp;
+        renderOrganizerList(); // Ridisegna con il nuovo ordine temporaneo
+    }
+
+    window.saveCollectionOrder = async function() {
+        const coll = window.moviesDB.find(c => c.id === currentCollectionId);
+        if (!coll) return;
+
+        coll.customOrder = tempOrder;
+
+        if(window.saveToFirebase) {
+            await window.saveToFirebase(coll, coll.id, false);
+            if(window.loadFromFirebase) await window.loadFromFirebase();
+        }
+
+        showCollectionDetail(currentCollectionId);
+    }
+
     // --- VISUALE DETTAGLIO FILM SINGOLO ---
     window.showMovieDetail = function(id, context = 'catalog') {
         const m = window.moviesDB.find(movie => movie.id === id); if(!m) return;
@@ -1023,6 +1158,15 @@
         let coverHTML = m.cover ? `<img src="${m.cover}" class="detail-cover" alt="Cover">` : `<div class="detail-cover" style="height:480px; background:#05080f; display:flex; align-items:center; justify-content:center; color:var(--text-dark);">[ NO VISUAL DATA ]</div>`;
         let genresHTML = (m.genres || []).map(g => `<span class="genre-tag" style="color: ${GENRES_MAP[g] || '#fff'}; padding: 2px 6px; border: 1px solid ${GENRES_MAP[g]}; border-radius: 3px; margin-right: 5px;">${g}</span>`).join('');
 
+        // Visualizzazione Testo Raggruppatore
+        let collectionTextHTML = '';
+        if (m.groupId) {
+            const parentColl = window.moviesDB.find(c => c.id === m.groupId);
+            if (parentColl) {
+                collectionTextHTML = `<div class="collection-text-pulse">▶ Sistema di appartenenza: ${parentColl.title}</div>`;
+            }
+        }
+
         const content = document.getElementById('detailContent');
         content.innerHTML = `
             <div class="detail-header">
@@ -1030,6 +1174,7 @@
                 <div class="detail-title-overlay">
                     <h2 class="detail-title">${m.title} <span style="font-size:1rem; color:var(--accent-orange);">[${m.year || 'N/A'}]</span></h2>
                     <div style="margin-top: 10px;">${genresHTML}</div>
+                    ${collectionTextHTML}
                 </div>
             </div>
             <div style="padding: 20px;">
